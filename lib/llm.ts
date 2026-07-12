@@ -3,72 +3,179 @@ export interface ChatMessage {
   content: string;
 }
 
-const HF_ROUTER_URL = "https://router.huggingface.co/v1/chat/completions";
-const DEFAULT_MODEL = "meta-llama/Llama-4-Scout-17B-16E-Instruct";
+interface CallOpts {
+  temperature?: number;
+  maxTokens?: number;
+}
+
+interface ProviderResult {
+  content: string;
+  usageIn?: number | string;
+  usageOut?: number | string;
+}
+
+interface Provider {
+  name: string;
+  envVar: string;
+  configured: () => boolean;
+  call: (messages: ChatMessage[], opts?: CallOpts) => Promise<ProviderResult>;
+}
 
 function log(...args: unknown[]) {
   console.log(`[AI ${new Date().toISOString()}]`, ...args);
 }
 
-/** Calls a Llama model through Hugging Face's OpenAI-compatible Inference
- * Providers router (cloud-hosted - no local GPU/Python needed). Model is
- * configurable via HF_MODEL so it can be swapped without code changes.
- * Logs each call to the terminal (model, duration, outcome) so AI activity
- * is visible while `npm run dev` is running. */
-export async function callLLM(
-  messages: ChatMessage[],
-  opts?: { temperature?: number; maxTokens?: number }
-): Promise<string> {
-  const token = process.env.HF_TOKEN;
-  if (!token) {
-    const err = "HF_TOKEN belum diset. Tambahkan di .env.local untuk mengaktifkan analisis AI.";
-    log(err);
-    throw new Error(err);
-  }
-  const model = process.env.HF_MODEL || DEFAULT_MODEL;
-  const promptChars = messages.reduce((sum, m) => sum + m.content.length, 0);
-  const startedAt = Date.now();
-  log(`-> memanggil "${model}" (${messages.length} pesan, ~${promptChars} karakter prompt)...`);
+// --- Hugging Face (Llama, lewat HF Inference Providers router - OpenAI-compatible) ---
 
-  let res: Response;
-  try {
-    res = await fetch(HF_ROUTER_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: opts?.temperature ?? 0.3,
-        max_tokens: opts?.maxTokens ?? 900,
-      }),
-    });
-  } catch (err) {
-    log(`<- gagal terhubung setelah ${Date.now() - startedAt}ms:`, err instanceof Error ? err.message : err);
-    throw err;
-  }
+async function callHuggingFace(messages: ChatMessage[], opts?: CallOpts): Promise<ProviderResult> {
+  const token = process.env.HF_TOKEN!;
+  const model = process.env.HF_MODEL || "meta-llama/Llama-4-Scout-17B-16E-Instruct";
 
-  const durationMs = Date.now() - startedAt;
+  const res = await fetch("https://router.huggingface.co/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: opts?.temperature ?? 0.3,
+      max_tokens: opts?.maxTokens ?? 500,
+    }),
+  });
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    log(`<- error ${res.status} setelah ${durationMs}ms:`, text.slice(0, 300));
-    throw new Error(`Hugging Face Inference API error ${res.status}: ${text.slice(0, 500)}`);
+    throw new Error(`HF error ${res.status}: ${text.slice(0, 300)}`);
   }
 
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content;
-  if (typeof content !== "string") {
-    log(`<- respons tidak sesuai format setelah ${durationMs}ms:`, JSON.stringify(data).slice(0, 300));
-    throw new Error("Respons LLM tidak sesuai format yang diharapkan.");
+  if (typeof content !== "string") throw new Error("Respons HF tidak sesuai format yang diharapkan.");
+
+  return { content, usageIn: data?.usage?.prompt_tokens, usageOut: data?.usage?.completion_tokens };
+}
+
+// --- Google Gemini (Google AI Studio - generativelanguage.googleapis.com) ---
+
+async function callGemini(messages: ChatMessage[], opts?: CallOpts): Promise<ProviderResult> {
+  const apiKey = process.env.GEMINI_API_KEY!;
+  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+
+  const systemMsg = messages.find((m) => m.role === "system")?.content;
+  const contents = messages
+    .filter((m) => m.role !== "system")
+    .map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] }));
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents,
+        ...(systemMsg ? { systemInstruction: { parts: [{ text: systemMsg }] } } : {}),
+        generationConfig: {
+          temperature: opts?.temperature ?? 0.3,
+          maxOutputTokens: opts?.maxTokens ?? 500,
+        },
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Gemini error ${res.status}: ${text.slice(0, 300)}`);
   }
 
-  const usage = data?.usage;
-  log(
-    `<- selesai dalam ${durationMs}ms, ${content.length} karakter dihasilkan` +
-      (usage ? ` (token: ${usage.prompt_tokens ?? "?"} in / ${usage.completion_tokens ?? "?"} out)` : "")
-  );
-  return content;
+  const data = await res.json();
+  const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (typeof content !== "string") throw new Error("Respons Gemini tidak sesuai format yang diharapkan (mungkin diblokir safety filter).");
+
+  return { content, usageIn: data?.usageMetadata?.promptTokenCount, usageOut: data?.usageMetadata?.candidatesTokenCount };
+}
+
+// --- Groq (llama/mixtral cloud-hosted super cepat, OpenAI-compatible, free tier) ---
+
+async function callGroq(messages: ChatMessage[], opts?: CallOpts): Promise<ProviderResult> {
+  const apiKey = process.env.GROQ_API_KEY!;
+  const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: opts?.temperature ?? 0.3,
+      max_tokens: opts?.maxTokens ?? 500,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Groq error ${res.status}: ${text.slice(0, 300)}`);
+  }
+
+  const data = await res.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (typeof content !== "string") throw new Error("Respons Groq tidak sesuai format yang diharapkan.");
+
+  return { content, usageIn: data?.usage?.prompt_tokens, usageOut: data?.usage?.completion_tokens };
+}
+
+/** Urutan fallback: coba provider pertama yang env var-nya diisi; kalau gagal
+ * (kuota habis, rate limit, error apapun), lanjut ke provider berikutnya yang
+ * dikonfigurasi. Ketiganya punya tingkatan gratis - HF Inference Providers,
+ * Google AI Studio (Gemini), dan Groq. */
+const PROVIDERS: Provider[] = [
+  { name: "Hugging Face", envVar: "HF_TOKEN", configured: () => !!process.env.HF_TOKEN, call: callHuggingFace },
+  { name: "Google Gemini", envVar: "GEMINI_API_KEY", configured: () => !!process.env.GEMINI_API_KEY, call: callGemini },
+  { name: "Groq", envVar: "GROQ_API_KEY", configured: () => !!process.env.GROQ_API_KEY, call: callGroq },
+];
+
+export function isAnyProviderConfigured(): boolean {
+  return PROVIDERS.some((p) => p.configured());
+}
+
+export function configuredProviderNames(): string[] {
+  return PROVIDERS.filter((p) => p.configured()).map((p) => p.name);
+}
+
+/** Memanggil LLM lewat provider pertama yang dikonfigurasi & berhasil, dengan
+ * fallback otomatis ke provider berikutnya kalau gagal. Logs each attempt to
+ * the terminal (provider, durasi, token in/out) so AI activity is visible
+ * while `npm run dev` is running. */
+export async function callLLM(messages: ChatMessage[], opts?: CallOpts): Promise<string> {
+  const candidates = PROVIDERS.filter((p) => p.configured());
+  if (candidates.length === 0) {
+    const err =
+      "Belum ada provider AI dikonfigurasi. Isi salah satu di .env.local: HF_TOKEN, GEMINI_API_KEY, atau GROQ_API_KEY.";
+    log(err);
+    throw new Error(err);
+  }
+
+  const promptChars = messages.reduce((sum, m) => sum + m.content.length, 0);
+  const failures: string[] = [];
+
+  for (const provider of candidates) {
+    const startedAt = Date.now();
+    log(`-> mencoba "${provider.name}" (${messages.length} pesan, ~${promptChars} karakter prompt)...`);
+    try {
+      const result = await provider.call(messages, opts);
+      const durationMs = Date.now() - startedAt;
+      log(
+        `<- "${provider.name}" berhasil dalam ${durationMs}ms, ${result.content.length} karakter dihasilkan` +
+          (result.usageIn != null ? ` (token: ${result.usageIn} in / ${result.usageOut ?? "?"} out)` : "")
+      );
+      return result.content;
+    } catch (err) {
+      const durationMs = Date.now() - startedAt;
+      const msg = err instanceof Error ? err.message : String(err);
+      log(`<- "${provider.name}" gagal setelah ${durationMs}ms:`, msg);
+      failures.push(`${provider.name}: ${msg}`);
+    }
+  }
+
+  const err = `Semua provider AI gagal:\n${failures.join("\n")}`;
+  log(err);
+  throw new Error(err);
 }

@@ -51,7 +51,7 @@ export function CheckpointCompliancePanel({ compliance, todayHari }: { complianc
 
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-      {compliance.map(({ group, status, indicators, kendala }) => {
+      {compliance.map(({ group, status, indicators, kendala, kendalaMismatch }) => {
         const s = STATUS_STYLES[status];
         const violations = indicators.filter((i) => i.gating && i.status === "violation");
         const unknowns = indicators.filter((i) => i.gating && i.status === "unknown");
@@ -68,6 +68,13 @@ export function CheckpointCompliancePanel({ compliance, todayHari }: { complianc
                 {s.label}
               </span>
             </div>
+
+            {kendalaMismatch && (
+              <div className="mt-1.5 rounded-md border border-status-warning/40 bg-status-warning/10 px-2 py-1.5 text-[11px] font-medium text-[#8a5a00]">
+                ⚠ Aplikasi bilang tidak ada masalah, tapi hasil wawancara LK ke sekolah melaporkan kendala nyata - status
+                diturunkan jadi &ldquo;Tidak ada data&rdquo; sampai dicek manual, bukan otomatis dipercaya &ldquo;Sesuai&rdquo;.
+              </div>
+            )}
 
             {violations.length > 0 && (
               <ul className="mt-2 flex flex-col gap-1.5 text-xs text-ink-secondary">
@@ -124,7 +131,11 @@ export function CheckpointCompliancePanel({ compliance, todayHari }: { complianc
                     </span>
                   )}
                 </div>
-                {kendala.text}
+                {kendala.text ?? (
+                  <span className="italic text-ink-muted">
+                    Tidak ada catatan kendala tercatat dari LK untuk ini - status di atas murni dari sisi lain.
+                  </span>
+                )}
               </div>
             )}
           </div>

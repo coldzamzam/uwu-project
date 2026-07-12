@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface FacilitatorRef {
   kodeFasil: string;
@@ -20,6 +20,29 @@ interface ResultEntry {
 
 function keyOf(kodeFasil: string, hari: number) {
   return `${kodeFasil}__${hari}`;
+}
+
+/** localStorage supaya hasil generate tidak hilang kalau tab di-refresh/ditutup
+ * nggak sengaja - generate ulang 420x itu mahal (waktu & kuota provider AI). */
+const STORAGE_KEY = "analisis-massal-entries-v1";
+
+function loadStoredEntries(): Record<string, ResultEntry> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, ResultEntry>;
+    // Entri yang masih "loading" saat tab ditutup/refresh sebenarnya sudah
+    // terputus - tandai gagal supaya tidak nyangkut selamanya di "Memproses...".
+    for (const key of Object.keys(parsed)) {
+      if (parsed[key].status === "loading") {
+        parsed[key] = { ...parsed[key], status: "error", error: "Terputus (tab ditutup/refresh) - generate ulang." };
+      }
+    }
+    return parsed;
+  } catch {
+    return {};
+  }
 }
 
 function download(filename: string, content: string, mime: string) {
@@ -43,17 +66,45 @@ async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => next()));
 }
 
+type HariFilter = "all" | number;
+
 export function BulkAnalysisRunner({ facilitators, days }: { facilitators: FacilitatorRef[]; days: number[] }) {
+  const latestDay = days[days.length - 1];
+  const [hariFilter, setHariFilter] = useState<HariFilter>(latestDay ?? "all");
+
   const combos = useMemo(
-    () => facilitators.flatMap((f) => days.map((hari) => ({ ...f, hari }))),
-    [facilitators, days]
+    () =>
+      hariFilter === "all"
+        ? facilitators.flatMap((f) => days.map((hari) => ({ ...f, hari })))
+        : facilitators.map((f) => ({ ...f, hari: hariFilter })),
+    [facilitators, days, hariFilter]
   );
 
-  const [entries, setEntries] = useState<Record<string, ResultEntry>>({});
+  const [entries, setEntries] = useState<Record<string, ResultEntry>>(loadStoredEntries);
   const [concurrency, setConcurrency] = useState(4);
   const [running, setRunning] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "done" | "error">("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
   const cancelRef = useRef(false);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    } catch {
+      // localStorage penuh/nggak tersedia (mis. private browsing) - abaikan,
+      // generate tetap jalan normal, cuma nggak ke-persist.
+    }
+  }, [entries]);
+
+  function clearStored() {
+    setEntries({});
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // abaikan
+    }
+  }
 
   const list = combos.map((c) => entries[keyOf(c.kodeFasil, c.hari)]).filter((e): e is ResultEntry => !!e);
   const doneCount = list.filter((e) => e.status === "done").length;
@@ -131,17 +182,55 @@ export function BulkAnalysisRunner({ facilitators, days }: { facilitators: Facil
     download("analisis-massal.md", parts.join("\n---\n\n"), "text/markdown");
   }
 
+  async function pushToSheet() {
+    setSaveState("saving");
+    setSaveError(null);
+    try {
+      const items = list
+        .filter((e) => e.status === "done")
+        .map((e) => ({ kodeFasil: e.kodeFasil, namaFasil: e.namaFasil, hari: e.hari, hasil: e.result }));
+      const res = await fetch("/api/analyze/save-to-sheet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal menyimpan ke spreadsheet.");
+      setSaveState("done");
+    } catch (err) {
+      setSaveState("error");
+      setSaveError(err instanceof Error ? err.message : "Gagal menyimpan ke spreadsheet.");
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="rounded-lg border border-border bg-surface p-4">
         <p className="mb-3 text-sm text-ink-secondary">
           Ini akan memanggil model AI sebanyak <strong>{total}x</strong> ({facilitators.length} fasilitator ×{" "}
-          {days.length} hari). Bisa memakan waktu cukup lama dan menggunakan kuota API Hugging Face Anda. Setiap
+          {days.length} hari). Bisa memakan waktu cukup lama dan menggunakan kuota provider AI Anda (otomatis fallback ke
+          provider berikutnya kalau salah satu habis/gagal). Setiap
           kombinasi fasilitator+hari punya data berbeda (checkpoint yang berlaku & catatan kualitatif per hari),
           jadi hasilnya seharusnya berbeda satu sama lain - meskipun untuk fasilitator yang sama, beberapa hari
           bisa terdengar mirip kalau metrik angkanya memang belum berubah di sheet.
         </p>
         <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-xs text-ink-secondary">
+            Sampai Hari ke-:
+            <select
+              value={hariFilter}
+              onChange={(e) => setHariFilter(e.target.value === "all" ? "all" : Number(e.target.value))}
+              disabled={running}
+              className="rounded border border-border bg-background px-2 py-1"
+            >
+              <option value="all">Semua Hari ({facilitators.length * days.length}x panggilan)</option>
+              {days.map((d) => (
+                <option key={d} value={d}>
+                  Hari {d} ({facilitators.length}x panggilan)
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="flex items-center gap-2 text-xs text-ink-secondary">
             Paralel:
             <select
@@ -185,9 +274,37 @@ export function BulkAnalysisRunner({ facilitators, days }: { facilitators: Facil
               <button onClick={exportMarkdown} className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink-primary">
                 Unduh Markdown
               </button>
+              <button
+                onClick={pushToSheet}
+                disabled={saveState === "saving"}
+                className="rounded-md bg-series-2 px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {saveState === "saving" ? "Menyimpan..." : "Tambahkan ke Spreadsheet"}
+              </button>
+              <button
+                onClick={() => {
+                  if (window.confirm("Hapus semua hasil yang tersimpan di browser ini? Tidak bisa dibatalkan.")) clearStored();
+                }}
+                className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-ink-muted hover:text-status-critical"
+              >
+                Hapus Hasil Tersimpan
+              </button>
             </>
           )}
         </div>
+        {totalStarted > 0 && (
+          <p className="mt-2 text-xs text-ink-muted">
+            Hasil otomatis tersimpan di browser ini (localStorage) - tetap ada walau di-refresh atau tab ditutup dan
+            dibuka lagi, sampai kamu hapus manual atau clear data browser.
+          </p>
+        )}
+
+        {saveState === "done" && (
+          <p className="mt-2 text-xs text-status-good">Berhasil disimpan ke spreadsheet.</p>
+        )}
+        {saveState === "error" && (
+          <p className="mt-2 text-xs text-status-critical">{saveError}</p>
+        )}
 
         {totalStarted > 0 && (
           <div className="mt-3">

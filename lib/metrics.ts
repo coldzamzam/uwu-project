@@ -27,24 +27,34 @@ function indicatorRiskContribution(
 }
 
 /**
- * Estimasi Nilai Risiko (0-100) dari bobot checkpoint yang aktif pada hari
- * tsb, dipakai sebagai fallback kalau kolom "Nilai Risiko" di spreadsheet
- * kosong (formula belum terpasang di sheet). Bukan angka resmi dari sheet -
- * selalu tandai sebagai estimasi di UI (lihat getEffectiveRisk).
+ * Estimasi Nilai Risiko (0-100%) dari bobot checkpoint yang SUDAH BISA DINILAI
+ * pada hari tsb, dipakai sebagai fallback kalau kolom "Nilai Risiko" di
+ * spreadsheet kosong (formula belum terpasang di sheet). Bukan angka resmi
+ * dari sheet - selalu tandai sebagai estimasi di UI (lihat getEffectiveRisk).
+ *
+ * Dinormalisasi terhadap total bobot indikator yang datanya tersedia
+ * (bukan total bobot semua checkpoint yang aktif, apalagi total bobot 100
+ * keseluruhan siklus) - supaya hasilnya konsisten 0-100% di hari manapun,
+ * bukan "0-77% doang" di Hari 7 misalnya (checkpoint yang belum jatuh tempo
+ * di hari itu memang belum bisa dinilai, jadi wajar tidak ikut jadi penyebut).
+ * Indikator yang datanya belum ada (bukan checkpoint-nya belum aktif, tapi
+ * selnya memang kosong) juga tidak ikut jadi penyebut - sengaja tidak
+ * dianggap "aman"/0% cuma karena belum diisi (lihat catatan di lib/compliance.ts
+ * soal 0% palsu vs "belum ada data").
  */
 export function computeEstimatedRisk(row: FacilRow): number | null {
   let weightedSum = 0;
-  let hasAny = false;
+  let bobotTerukur = 0;
   for (const group of activeCheckpoints(row.hari)) {
     for (const ind of group.indicators) {
       if (ind.bobot <= 0) continue;
       const contribution = indicatorRiskContribution(row, ind.kolom, ind.polarity);
       if (contribution == null) continue;
       weightedSum += ind.bobot * (contribution / 100);
-      hasAny = true;
+      bobotTerukur += ind.bobot;
     }
   }
-  return hasAny ? weightedSum : null;
+  return bobotTerukur > 0 ? (weightedSum / bobotTerukur) * 100 : null;
 }
 
 export interface EffectiveRisk {

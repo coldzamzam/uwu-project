@@ -12,10 +12,16 @@ Aturan penting:
 - Data berupa persentase "masalah" (mis. "% Sekolah Belum Login Aplikasi") - semakin TINGGI nilainya semakin BURUK.
 - "Nilai Risiko" adalah skor terbobot 0-100% (semakin tinggi = semakin berisiko), dihitung dari checkpoint-checkpoint yang diberikan. Kalau ditandai "(estimasi)", berarti kolom itu kosong di sheet dan dihitung otomatis oleh aplikasi dari bobot checkpoint - sebut ke pembaca bahwa angka itu estimasi, bukan hasil resmi sheet.
 - JANGAN menyalahkan fasilitator untuk checkpoint yang belum berlaku pada hari tsb (lihat catatan "belum relevan" di data).
-- Jika ada "Analisis" atau "Catatan Admin" yang sudah ditulis manusia, jadikan itu konteks tambahan - jangan diulang mentah-mentah, tapi boleh dikonfirmasi/dipertajam.
+- Jika ada "Catatan Admin" yang sudah ditulis manusia, jadikan itu konteks tambahan - jangan diulang mentah-mentah, tapi boleh dikonfirmasi/dipertajam. Kolom "Analisis" sengaja TIDAK diikutkan sebagai konteks - itu tempat menyimpan hasil analisis AI ini sendiri (lewat fitur "Tambahkan ke Spreadsheet"), supaya tiap analisis baru murni dari data terkini, bukan menggemakan hasil analisis lama.
 - Perhatikan pola anomali: data yang sama sekali tidak berubah selama beberapa hari berturut-turut sering menandakan fasilitator berhenti mengisi laporan, bukan kondisi yang benar-benar stabil.
 - Kolom bersumber "LK Fasil" yang terbaca 0% masalah atau "Sudah" TIDAK OTOMATIS berarti kondisinya baik - itu bisa jadi cuma default kosong di sheet kalau fasilitator belum login LK sama sekali, atau catatan "Kendala..." terkait menyebut "belum diisi". Selalu silangkan dengan status "Fasil Belum Login LK" dan catatan Kendala terkait sebelum menyimpulkan sesuatu "aman" - jangan tertipu angka 0% yang sebenarnya berarti "belum ada data", bukan "sudah terverifikasi baik".
-- Jawab dalam Bahasa Indonesia, ringkas, terstruktur, dan langsung actionable. Gunakan format markdown dengan heading pendek.`;
+- Jawab dalam Bahasa Indonesia, dalam bentuk poin-poin saja - SATU kalimat ringkas per poin, tanpa sub-bullet, tanpa paragraf penjelasan tambahan, tanpa pembuka/penutup di luar poin yang diminta.`;
+
+/** QUALITATIVE_FIELDS tanpa "analisis" - dipakai khusus untuk konteks yang
+ * dikirim ke LLM (lihat catatan di SYSTEM_PROMPT soal kenapa kolom itu
+ * dikecualikan). Tampilan UI (halaman detail fasilitator, chart aktivitas)
+ * tetap pakai QUALITATIVE_FIELDS penuh dari lib/notes.ts. */
+const PROMPT_QUALITATIVE_FIELDS = QUALITATIVE_FIELDS.filter((f) => f.key !== "analisis");
 
 function formatCell(v: FacilRow[keyof FacilRow]): string {
   if (v == null) return "-";
@@ -47,7 +53,7 @@ function buildHistoryTable(history: FacilRow[], maxDay: number): string {
 function buildQualitativeNotes(history: FacilRow[]): string {
   const lines: string[] = [];
   for (const row of history) {
-    for (const field of QUALITATIVE_FIELDS) {
+    for (const field of PROMPT_QUALITATIVE_FIELDS) {
       const value = row[field.key];
       if (typeof value === "string" && value.trim() !== "" && value !== "Belum Diisi") {
         lines.push(`- Hari ${row.hari} - ${field.label}: ${value}`);
@@ -75,11 +81,11 @@ ${buildHistoryTable(history, maxDay)}
 ## Catatan Kualitatif (Kendala / Analisis / Catatan Admin yang sudah ada)
 ${buildQualitativeNotes(history)}
 
-Tolong berikan analisis dengan struktur berikut:
-1. **Ringkasan Kinerja** - apakah fasilitator ini bagus, cukup, atau butuh perhatian, dan kenapa.
-2. **Red Flags** - masalah paling mendesak (jika ada), urutkan dari paling kritis.
-3. **Indikasi Anomali** - pola mencurigakan seperti data yang tidak berubah, atau ketidaksesuaian antar kolom (mis. LK vs Aplikasi).
-4. **Rekomendasi Tindak Lanjut** - langkah konkret untuk admin/koordinator.`;
+Tolong jawab dalam TEPAT 4 poin, satu kalimat ringkas per poin (maksimal ~25 kata), tanpa sub-bullet atau penjelasan tambahan:
+1. **Ringkasan Kinerja** - bagus/cukup/butuh perhatian, dan kenapa, dalam satu kalimat.
+2. **Red Flags** - masalah paling mendesak dalam satu kalimat (atau "Tidak ada red flag saat ini" kalau memang tidak ada).
+3. **Indikasi Anomali** - pola mencurigakan paling menonjol dalam satu kalimat (atau "Tidak ada anomali terdeteksi" kalau memang tidak ada).
+4. **Rekomendasi Tindak Lanjut** - satu tindakan paling penting untuk admin/koordinator.`;
 
   return [
     { role: "system", content: SYSTEM_PROMPT },
@@ -101,7 +107,7 @@ export function buildDailySummaryMessages(dayRows: FacilRow[], hari: number): Ch
 
   const notes = dayRows
     .flatMap((r) =>
-      QUALITATIVE_FIELDS.filter((f) => {
+      PROMPT_QUALITATIVE_FIELDS.filter((f) => {
         const v = r[f.key];
         return typeof v === "string" && v.trim() !== "" && v !== "Belum Diisi";
       }).map((f) => `- ${r.namaFasil}: [${f.label}] ${r[f.key]}`)
@@ -119,11 +125,11 @@ ${table}
 ## Catatan Kualitatif dari Lapangan
 ${notes || "(tidak ada catatan kualitatif tambahan)"}
 
-Tolong berikan ringkasan eksekutif dengan struktur berikut:
-1. **Kondisi Umum** - gambaran keseluruhan kinerja hari ini.
-2. **Fasilitator Prioritas** - siapa saja yang paling butuh perhatian/intervensi segera, dan kenapa.
-3. **Pola Kendala Umum** - kendala yang berulang di banyak fasilitator (jika ada).
-4. **Rekomendasi Prioritas Admin** - 3-5 tindakan konkret untuk hari ini/besok.`;
+Tolong jawab dalam TEPAT 4 poin, satu kalimat ringkas per poin (maksimal ~25 kata), tanpa sub-bullet atau penjelasan tambahan:
+1. **Kondisi Umum** - gambaran keseluruhan kinerja hari ini dalam satu kalimat.
+2. **Fasilitator Prioritas** - siapa yang paling butuh perhatian/intervensi segera, dan kenapa, dalam satu kalimat.
+3. **Pola Kendala Umum** - kendala paling menonjol yang berulang di banyak fasilitator dalam satu kalimat (atau "Tidak ada pola kendala umum" kalau memang tidak ada).
+4. **Rekomendasi Prioritas Admin** - satu tindakan paling penting untuk hari ini/besok.`;
 
   return [
     { role: "system", content: SYSTEM_PROMPT },

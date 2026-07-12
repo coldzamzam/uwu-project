@@ -34,9 +34,20 @@ export interface CheckpointCompliance {
   group: CheckpointGroup;
   status: "sesuai" | "belum-sesuai" | "unknown";
   indicators: IndicatorCompliance[];
-  /** Catatan "Kendala ..." dari Hasil LK terkait checkpoint ini (kalau diisi fasilitator) - konteks kualitatif sisi LK, dipakai juga untuk checkpoint yang datanya cuma bersumber Aplikasi.
-   * `isIssue` = kendala ini genuinely melaporkan masalah dari hasil wawancara ke sekolah (bukan placeholder "belum diisi") - dipakai sebagai status LK tersirat: ada kendala berarti sisi LK-nya "Belum", tanpa perlu kolom status LK terpisah. */
-  kendala?: { label: string; text: string; isIssue: boolean };
+  /** Catatan "Kendala ..." dari Hasil LK terkait checkpoint ini - konteks kualitatif sisi LK,
+   * ditampilkan juga untuk checkpoint yang status Sesuai/Belum Sesuai-nya cuma bersumber Aplikasi,
+   * supaya jelas kalau memang sumber datanya beda (bukan LK "bilang aman" - LK-nya cuma belum
+   * punya catatan apapun untuk checkpoint ini). `text: null` = kolom kendalanya kosong total.
+   * `isIssue` = kendala ini genuinely melaporkan masalah dari hasil wawancara ke sekolah (bukan
+   * placeholder "belum diisi" ataupun kosong) - dipakai sebagai status LK tersirat: ada kendala
+   * berarti sisi LK-nya "Belum", tanpa perlu kolom status LK terpisah. */
+  kendala?: { label: string; text: string | null; isIssue: boolean };
+  /** true kalau Aplikasi bilang "sesuai" (tidak ada gating indicator yang violation/unknown) tapi
+   * hasil wawancara LK ke sekolah (kolom Kendala) justru melaporkan masalah nyata - dua sumber data
+   * independen bertentangan, jadi status di atas didowngrade dari "sesuai" ke "unknown" alih-alih
+   * dipercaya begitu saja. Ini menangkap kasus fasilitator asal isi Aplikasi padahal sekolah
+   * mengaku masih ada kendala saat diwawancara. */
+  kendalaMismatch?: boolean;
 }
 
 /** Kolom -> pasangannya di sisi lain (LK Fasil <-> Aplikasi Revit), dibangun
@@ -194,20 +205,32 @@ export function getCheckpointCompliance(row: FacilRow, todayHari: number): Check
     const gating = indicators.filter((i) => i.gating);
     const hasViolation = gating.some((i) => i.status === "violation");
     const hasUnknown = gating.some((i) => i.status === "unknown");
-    const status: CheckpointCompliance["status"] = hasViolation ? "belum-sesuai" : hasUnknown ? "unknown" : "sesuai";
+    let status: CheckpointCompliance["status"] = hasViolation ? "belum-sesuai" : hasUnknown ? "unknown" : "sesuai";
 
     const kendalaKey = KENDALA_BY_CHECKPOINT[group.no];
     const kendalaVal = kendalaKey ? row[kendalaKey] : null;
-    const kendala =
-      kendalaKey && typeof kendalaVal === "string" && kendalaVal.trim() !== ""
-        ? {
-            label: KEY_TO_HEADER[kendalaKey] ?? String(kendalaKey),
-            text: kendalaVal,
-            isIssue: !BELUM_DIISI_PATTERN.test(kendalaVal),
-          }
-        : undefined;
+    const kendalaTextRaw = typeof kendalaVal === "string" ? kendalaVal.trim() : "";
+    // Selalu buat objek kendala (bukan undefined) kalau checkpoint ini punya
+    // pemetaan kolom Kendala - supaya sisi LK SELALU eksplisit ditampilkan,
+    // termasuk saat kolomnya kosong total. Checkpoint yang drivernya Aplikasi
+    // (mis. Biodata) sebelumnya "diam" soal LK kalau kolomnya kosong, bikin
+    // kesan cuma ada 1 sumber data padahal LK memang belum ada catatan sama
+    // sekali untuk ini (beda dari "LK bilang aman").
+    const kendala = kendalaKey
+      ? {
+          label: KEY_TO_HEADER[kendalaKey] ?? String(kendalaKey),
+          text: kendalaTextRaw === "" ? null : kendalaTextRaw,
+          isIssue: kendalaTextRaw !== "" && !BELUM_DIISI_PATTERN.test(kendalaTextRaw),
+        }
+      : undefined;
 
-    return { group, status, indicators, kendala };
+    let kendalaMismatch = false;
+    if (status === "sesuai" && kendala?.isIssue) {
+      status = "unknown";
+      kendalaMismatch = true;
+    }
+
+    return { group, status, indicators, kendala, kendalaMismatch };
   });
 }
 

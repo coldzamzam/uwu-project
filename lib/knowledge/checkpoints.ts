@@ -22,6 +22,11 @@ export interface CheckpointGroup {
   indicators: CheckpointIndicator[];
 }
 
+/** Panjang siklus pendampingan penuh - dipakai sebagai `hari` "tak terbatas"
+ * supaya activeCheckpoints() mengembalikan SEMUA checkpoint (mis. untuk
+ * tampilan "Keseluruhan" yang sengaja tidak digating per hari tertentu). */
+export const TOTAL_HARI_SIKLUS = 14;
+
 /**
  * Encodes the two base-knowledge tables the program owner maintains in the
  * spreadsheet: (1) per-column definitions/sumber data/tujuan, and (2) the
