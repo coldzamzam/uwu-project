@@ -11,6 +11,7 @@ import { classifySeverity } from "@uwu/core/severity";
 import { findIndicator } from "@uwu/core/knowledge/checkpoints";
 import { TIER_STYLES } from "./SeverityBadge";
 import { InfoTooltip } from "./InfoTooltip";
+import { FacilDocumentFunnel } from "./DocumentProgressFunnel";
 
 const KENDALA_FIELDS = QUALITATIVE_FIELDS.filter((f) => f.key !== "analisis" && f.key !== "catatanAdmin");
 
@@ -235,6 +236,68 @@ function facilHref(kodeFasil: string, hari: number, mode: "alltime" | "harian"):
   return `/fasilitator/${kodeFasil}?${params.toString()}`;
 }
 
+/** Kartu daftar kolom Kendala fasilitator (baca saja) - dipisah dari
+ * FacilitatorAnalysisWorkbench supaya bisa ditaruh di kolom tengah halaman
+ * fasilitator (kolom "kendala"), terpisah dari panel Analisis AI di kanan. */
+export function FacilKendalaPanel({
+  row,
+  history,
+  compliance,
+  hari,
+}: {
+  row: FacilRow;
+  history: FacilRow[];
+  compliance: CheckpointCompliance[];
+  hari: number;
+}) {
+  const [firstField, ...restFields] = KENDALA_FIELDS;
+
+  const renderField = (f: (typeof KENDALA_FIELDS)[number]) => {
+    const d = kendalaDisplayBase(row, history, f.key, hari);
+    return (
+      <label key={String(f.key)} className="flex h-full flex-col gap-0.5 text-[11px] text-ink-secondary">
+        <span className="font-medium text-ink-primary">{KEY_TO_HEADER[f.key] ?? f.label}</span>
+        {f.key === "kendalaKomunikasi" && <ContactStatusNote compliance={compliance} />}
+        {d.statusNote && (
+          <div className={`inline-flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-semibold ${TIER_STYLES.kuning.bg} ${TIER_STYLES.kuning.text}`}>
+            {d.statusNote}
+          </div>
+        )}
+        <textarea
+          readOnly
+          value={d.text}
+          className={`flex-1 min-h-[3.5rem] resize-none rounded-md border px-1.5 py-1 text-[11px] leading-snug ${KENDALA_STATE_CONTAINER[d.state]} ${
+            d.isPlaceholder ? "italic text-ink-muted" : "text-ink-primary"
+          } focus:outline-none`}
+        />
+      </label>
+    );
+  };
+
+  return (
+    <div className="flex h-full flex-col rounded-xl border border-border bg-surface shadow-sm">
+      <div className="flex shrink-0 flex-col gap-2 border-b border-gridline px-4 py-2.5">
+        <h3 className="text-sm font-semibold text-ink-primary">Catatan Kendala Fasil (Hari ke-{hari})</h3>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-2">
+        {/* Grid 3 kolom - baris pertama sengaja cuma diisi 1 field Kendala,
+         * sisa 2 slot (tengah-atas, kanan-atas) diisi kartu Progres Dokumen
+         * Admin/Teknis (pindahan dari kolom kiri halaman) supaya tidak ada
+         * ruang kosong. Field Kendala sisanya (9 field) otomatis mengalir 3
+         * per baris di bawahnya. auto-rows-fr + h-full field/textarea supaya
+         * seluruh tinggi kartu terisi rata, tidak ada ruang kosong di bawah. */}
+        <div className="grid h-full grid-cols-1 auto-rows-fr gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {renderField(firstField)}
+          <FacilDocumentFunnel row={row} kategori="Admin" />
+          <FacilDocumentFunnel row={row} kategori="Teknis" />
+          {restFields.map(renderField)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Panel review satu fasilitator: kolom-kolom Kendala (baca saja, buat konteks
  * sekilas tanpa scroll ke tiap kartu checkpoint) + kolom Analisis yang bisa
@@ -244,8 +307,6 @@ function facilHref(kodeFasil: string, hari: number, mode: "alltime" | "harian"):
  * Selanjutnya supaya bisa direview satu-satu tanpa balik ke daftar. */
 export function FacilitatorAnalysisWorkbench({
   row,
-  history,
-  compliance,
   hari,
   mode,
   prevFacilitator,
@@ -253,8 +314,6 @@ export function FacilitatorAnalysisWorkbench({
   existingAnalisis,
 }: {
   row: FacilRow;
-  history: FacilRow[];
-  compliance: CheckpointCompliance[];
   hari: number;
   mode: "alltime" | "harian";
   prevFacilitator: FacilitatorRef | null;
@@ -329,7 +388,7 @@ export function FacilitatorAnalysisWorkbench({
   }
 
   return (
-    <div className="flex flex-col gap-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto pb-4 pr-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+    <div className="flex max-h-full flex-col gap-4 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
       {/* Bagian Navigasi */}
       <div className="flex shrink-0 items-center justify-between gap-2 px-1 text-xs">
         {prevFacilitator ? (
@@ -399,40 +458,6 @@ export function FacilitatorAnalysisWorkbench({
           </button>
           {saveState === "done" && <span className="text-xs font-medium text-status-good">✓ Tersimpan (Kolom Analisis Hari {hari})</span>}
           {saveState === "error" && <span className="text-xs text-status-critical">{saveError}</span>}
-        </div>
-      </div>
-
-      {/* Bagian Catatan Kendala */}
-      <div className="flex flex-col rounded-xl border border-border bg-surface shadow-sm">
-        <div className="flex shrink-0 flex-col gap-2 border-b border-gridline p-5">
-          <h3 className="text-sm font-semibold text-ink-primary">Catatan Kendala Fasil (Hari ke-{hari})</h3>
-        </div>
-
-        <div className="flex flex-col gap-4 overflow-y-auto p-5">
-          <div className="flex flex-col gap-4">
-            {KENDALA_FIELDS.map((f) => {
-              const d = kendalaDisplayBase(row, history, f.key, hari);
-              return (
-                <label key={String(f.key)} className="flex flex-col gap-1.5 text-xs text-ink-secondary">
-                  <span className="font-medium text-ink-primary">{KEY_TO_HEADER[f.key] ?? f.label}</span>
-                  {f.key === "kendalaKomunikasi" && <ContactStatusNote compliance={compliance} />}
-                  {d.statusNote && (
-                    <div className={`inline-flex w-fit items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-semibold ${TIER_STYLES.kuning.bg} ${TIER_STYLES.kuning.text}`}>
-                      {d.statusNote}
-                    </div>
-                  )}
-                  <textarea
-                    readOnly
-                    value={d.text}
-                    rows={2}
-                    className={`resize-y rounded-md border px-3 py-2 text-sm leading-relaxed ${KENDALA_STATE_CONTAINER[d.state]} ${
-                      d.isPlaceholder ? "italic text-ink-muted" : "text-ink-primary"
-                    } focus:outline-none`}
-                  />
-                </label>
-              );
-            })}
-          </div>
         </div>
       </div>
     </div>

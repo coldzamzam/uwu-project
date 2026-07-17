@@ -16,7 +16,7 @@ export default async function ProgresDokumenPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-lg font-semibold">Progres Dokumen: Terunggah → Terverifikasi → Sesuai</h1>
+        <h1 className="text-lg font-semibold">Progres Dokumen</h1>
         <p className="text-sm text-ink-secondary">
           Kondisi terkini (per Hari ke-{todayHari}) tiap fasilitator, supaya penurunan persentase dari dokumen yang
           sekadar terunggah sampai yang benar-benar dinyatakan sesuai kelihatan jelas per tahap - baik untuk Dokumen

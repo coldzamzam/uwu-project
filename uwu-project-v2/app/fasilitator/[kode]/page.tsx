@@ -5,19 +5,14 @@ import { fetchAnalisisFromSheet } from "@/lib/writeSheet";
 import { getRowsForFacilitator, riskLevel, getEffectiveRisk, getCurrentRow, getFacilitators } from "@uwu/core/metrics";
 import { getCheckpointCompliance, countNonCompliant } from "@uwu/core/compliance";
 import { buildNoteRanges, formatHariRange, QUALITATIVE_FIELDS } from "@uwu/core/notes";
-import { detectFacilitatorAnomalies, fieldsWithFutureDataAnomaly } from "@uwu/core/anomalies";
+import { detectFacilitatorAnomalies } from "@uwu/core/anomalies";
 import { TOTAL_HARI_SIKLUS } from "@uwu/core/knowledge/checkpoints";
 import type { FacilRow } from "@uwu/core/types";
 import { DaySelector } from "@/components/DaySelector";
 import { ModeToggle } from "@/components/ModeToggle";
-import { FacilDocumentFunnel } from "@/components/DocumentProgressFunnel";
-import { FacilMetricsList } from "@/components/FacilMetricsList";
-import { FacilitatorAnalysisWorkbench } from "@/components/FacilitatorAnalysisWorkbench";
+import { FacilitatorAnalysisWorkbench, FacilKendalaPanel } from "@/components/FacilitatorAnalysisWorkbench";
 import { RiskBadge } from "@/components/RiskBadge";
-import { CheckpointCompliancePanel } from "@/components/CheckpointCompliancePanel";
 import { AnomalyList } from "@/components/AnomalyList";
-import { MilestoneTimeline } from "@/components/MilestoneTimeline";
-import { LkFasilPanel } from "@/components/LkFasilPanel";
 import { getFacilitatorLkEditUrl } from "@/lib/facilitatorLkLinks";
 import { TodayLogPanel } from "@/components/TodayLogPanel";
 
@@ -67,7 +62,6 @@ export default async function FacilitatorDetailPage({
 
   const days = history.map((r) => r.hari);
   const latestDay = days[days.length - 1];
-  const todayLogs = logData?.logsByHari.get(todayHari) ?? null;
 
   let hari: number;
   let currentRow: FacilRow;
@@ -78,6 +72,10 @@ export default async function FacilitatorDetailPage({
     hari = hariParam ? parseInt(hariParam, 10) : latestDay;
     currentRow = history.find((r) => r.hari === hari) ?? getCurrentRow(history, todayHari) ?? history[history.length - 1];
   }
+
+  // Ikuti hari yang lagi dipilih (DaySelector), bukan cuma hari ini - supaya
+  // panel "Log Hari Ini" berubah juga saat pindah ke hari lain.
+  const todayLogs = logData?.logsByHari.get(hari) ?? null;
 
   // "Keseluruhan" sengaja tidak digating per hari - tunjukkan status SEMUA 14
   // checkpoint terhadap kondisi terkini, bukan cuma yang sudah jatuh tempo.
@@ -100,7 +98,6 @@ export default async function FacilitatorDetailPage({
   const notes = buildNoteRanges(history, QUALITATIVE_FIELDS, (text) => text !== "Belum Diisi");
   const unfilled = buildNoteRanges(history, QUALITATIVE_FIELDS, (text) => text === "Belum Diisi");
   const anomalies = detectFacilitatorAnomalies(history, todayHari);
-  const anomalyFields = fieldsWithFutureDataAnomaly(anomalies);
 
   // Daftar terurut nama - dipakai untuk navigasi Sebelumnya/Selanjutnya, supaya
   // admin bisa review kendala & isi Analisis satu fasilitator demi satu tanpa
@@ -117,154 +114,115 @@ export default async function FacilitatorDetailPage({
     // dipusatkan ulang lewat left-1/2 + -translate-x-1/2, supaya keluar dari
     // batas max-width & centering parent-nya tanpa mengubah layout.tsx global
     // (yang masih dipakai halaman lain).
-    <div className="relative left-1/2 w-screen -translate-x-1/2 px-4 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-4">
+    <div className="relative left-1/2 w-screen -translate-x-1/2 px-4 py-3 sm:px-6 lg:h-[calc(100vh-52px)] lg:px-8 lg:py-3">
+      <div className="flex h-full flex-col gap-3">
       {anomalies.length > 0 && (
         <a
           href="#anomali-terdeteksi"
-          className="block w-full rounded-md border border-status-critical/40 bg-status-critical/10 px-4 py-2.5 text-sm font-semibold text-status-critical hover:bg-status-critical/15"
+          className="block w-full shrink-0 rounded-md border border-status-critical/40 bg-status-critical/10 px-4 py-2 text-sm font-semibold text-status-critical hover:bg-status-critical/15"
         >
           ⚠ {anomalies.length} anomali terdeteksi pada data fasilitator ini - data mungkin tidak akurat, jangan
           langsung dipercaya. Lihat detail di bagian &quot;Anomali Terdeteksi&quot; ↓
         </a>
       )}
-      <div>
-        <Link href="/" className="text-sm text-series-1 hover:underline">
-          ← Kembali ke Dashboard
-        </Link>
-        <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="text-lg font-semibold">{currentRow.namaFasil}</h1>
-          <RiskBadge level={riskLevel(risk.value)} value={risk.value} estimated={risk.estimated} />
-          {nonCompliantCount > 0 && (
-            <span className="rounded-full bg-status-critical/10 px-2.5 py-1 text-xs font-medium text-status-critical">
-              ⚠ {nonCompliantCount} checkpoint belum sesuai (
-              {mode === "alltime" ? `keseluruhan siklus, kondisi terkini Hari ${todayHari}` : `per Hari ${hari}, ${relLabel}`})
-            </span>
-          )}
+      <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
+        <div>
+          <Link href="/" className="text-sm text-series-1 hover:underline">
+            ← Kembali ke Dashboard
+          </Link>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <h1 className="text-lg font-semibold">{currentRow.namaFasil}</h1>
+            <RiskBadge level={riskLevel(risk.value)} value={risk.value} estimated={risk.estimated} />
+            {editUrl && (
+              <a
+                href={editUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-ink-secondary hover:border-series-1 hover:text-series-1"
+              >
+                LK Fasil ↗
+              </a>
+            )}
+            {nonCompliantCount > 0 && (
+              <span className="rounded-full bg-status-critical/10 px-2.5 py-1 text-xs font-medium text-status-critical">
+                ⚠ {nonCompliantCount} checkpoint belum sesuai (
+                {mode === "alltime" ? `keseluruhan siklus, kondisi terkini Hari ${todayHari}` : `per Hari ${hari}, ${relLabel}`})
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-ink-secondary">
+            {currentRow.kodeFasil} · Koordinator: {currentRow.namaKoor} ({currentRow.kodeKoor}) · Admin: {currentRow.atmin}
+          </p>
         </div>
-        <p className="text-sm text-ink-secondary">
-          {currentRow.kodeFasil} · Koordinator: {currentRow.namaKoor} ({currentRow.kodeKoor}) · Admin: {currentRow.atmin}
-        </p>
-      </div>
-
-      <TodayLogPanel todayHari={todayHari} logs={todayLogs} />
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)_360px] lg:items-start">
-        <div className="flex flex-col gap-4 lg:sticky lg:top-4">
+        <div className="flex flex-col items-end gap-2">
           <ModeToggle mode={mode} basePath={`/fasilitator/${kode}`} />
           {mode === "harian" && (
             <DaySelector days={days} current={hari} basePath={`/fasilitator/${kode}`} todayHari={todayHari} />
           )}
-          <MilestoneTimeline
-            compliance={compliance}
-            history={history}
-            todayHari={todayHari}
-            viewedHari={mode === "alltime" ? todayHari : hari}
-            anomalyFields={anomalyFields}
-          />
-          {anomalies.length > 0 && (
-            <div id="anomali-terdeteksi">
-              <h2 className="mb-2 text-sm font-semibold text-ink-primary">Anomali Terdeteksi</h2>
-              <AnomalyList items={anomalies} />
-            </div>
-          )}
         </div>
-
-        <div className="flex min-w-0 flex-col gap-4">
-          <div>
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold text-ink-primary">Progres Dokumen: Terunggah → Terverifikasi → Sesuai</h2>
-              <Link href="/progres-dokumen" className="text-xs text-series-1 hover:underline">
-                Bandingkan semua fasilitator →
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <FacilDocumentFunnel row={currentRow} kategori="Admin" />
-              <FacilDocumentFunnel row={currentRow} kategori="Teknis" />
-            </div>
-          </div>
-
-          <div>
-            <h2 className="mb-3 text-sm font-semibold text-ink-primary">
-              Kepatuhan Checkpoint{" "}
-              {mode === "alltime"
-                ? `(Keseluruhan Siklus - kondisi terkini Hari ${todayHari})`
-                : `(per Hari ${hari}, ${relLabel})`}
-            </h2>
-            {mode === "harian" && relLabel === "belum terjadi" && (
-              <p className="mb-2 text-xs text-ink-muted">
-                Hari {hari} belum terjadi (hari ini Hari {todayHari}) - ini menunjukkan checkpoint mana yang akan
-                jatuh tempo per hari itu, dihitung dari data terkini (angka tidak berubah antar hari, lihat catatan
-                di atas).
-              </p>
-            )}
-            {mode === "alltime" && (
-              <p className="mb-2 text-xs text-ink-muted">
-                Menampilkan status SEMUA 14 checkpoint terhadap kondisi terkini fasilitator, tanpa gating
-                &ldquo;sudah jatuh tempo atau belum&rdquo; - untuk lihat status per hari tertentu, pindah ke tab
-                &ldquo;Per Hari&rdquo;.
-              </p>
-            )}
-            <CheckpointCompliancePanel compliance={compliance} todayHari={complianceHari} />
-          </div>
-
-          <LkFasilPanel kodeFasil={kode} hari={mode === "alltime" ? undefined : hari} editUrl={editUrl} />
-
-          <div>
-            <h2 className="mb-3 text-sm font-semibold text-ink-primary">
-              Detail Metrik {mode === "alltime" ? "- Semua Checkpoint (kondisi terkini)" : `- Hari ${hari}`}
-            </h2>
-            <FacilMetricsList row={currentRow} overrideHari={mode === "alltime" ? TOTAL_HARI_SIKLUS : undefined} />
-          </div>
-        </div>
-
-        <FacilitatorAnalysisWorkbench
-          key={`${kode}-${hari}-${mode}`}
-          row={currentRow}
-          history={history}
-          compliance={compliance}
-          hari={hari}
-          mode={mode}
-          prevFacilitator={prevFacilitator}
-          nextFacilitator={nextFacilitator}
-          existingAnalisis={existingAnalisis}
-        />
       </div>
 
-      {(notes.length > 0 || unfilled.length > 0) && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {notes.length > 0 && (
-            <div>
-              <h2 className="mb-3 text-sm font-semibold text-ink-primary">Catatan Kualitatif</h2>
-              <ul className="flex flex-col gap-2">
-                {notes.map((n, i) => (
-                  <li key={i} className="rounded-lg border border-border bg-surface p-3 text-sm shadow-sm">
-                    <span className="mr-2 rounded bg-background px-1.5 py-0.5 text-xs text-ink-muted">{formatHariRange(n)}</span>
-                    <span className="font-medium text-ink-secondary">{n.label}:</span> <span className="text-ink-primary">{n.text}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+      <div className="shrink-0 lg:max-h-[38vh] lg:overflow-y-auto">
+        <TodayLogPanel hari={hari} todayHari={todayHari} logs={todayLogs} />
+      </div>
 
-          {unfilled.length > 0 && (
-            <div>
-              <h2 className="mb-3 text-sm font-semibold text-ink-primary">Belum Diisi Fasilitator</h2>
-              <p className="mb-2 text-xs text-ink-muted">
-                Kolom Kendala yang masih placeholder &ldquo;Belum Diisi&rdquo; - bagian LK yang belum ditanggapi fasilitator sama sekali. Ini juga yang jadi dasar checkpoint di atas ditandai &ldquo;Tidak ada data&rdquo;, bukan &ldquo;Sesuai&rdquo;.
-              </p>
-              <ul className="flex flex-col gap-1.5">
-                {unfilled.map((n, i) => (
-                  <li key={i} className="rounded-lg border border-border bg-surface px-3 py-2 text-xs text-ink-muted shadow-sm">
-                    <span className="mr-2 rounded bg-background px-1.5 py-0.5">{formatHariRange(n)}</span>
-                    {n.label}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        {/* Baris 2 kartu utama - dipisah dari kendala historis di bawah supaya
+         * items-stretch bisa menyamakan tinggi PERSIS antara kartu Kendala &
+         * kartu Analisis, tanpa terganggu konten tambahan yang panjangnya
+         * bervariasi (anomali/catatan/belum-diisi). */}
+        <div className="grid min-h-0 grid-cols-1 gap-3 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_480px] lg:items-stretch">
+          <FacilKendalaPanel row={currentRow} history={history} compliance={compliance} hari={hari} />
+          <FacilitatorAnalysisWorkbench
+            key={`${kode}-${hari}-${mode}`}
+            row={currentRow}
+            hari={hari}
+            mode={mode}
+            prevFacilitator={prevFacilitator}
+            nextFacilitator={nextFacilitator}
+            existingAnalisis={existingAnalisis}
+          />
         </div>
-      )}
+
+        {(anomalies.length > 0 || notes.length > 0 || unfilled.length > 0) && (
+          <div className="shrink-0 lg:max-h-[22vh] lg:overflow-y-auto">
+            {anomalies.length > 0 && (
+              <div id="anomali-terdeteksi" className="mb-2">
+                <h2 className="mb-2 text-sm font-semibold text-ink-primary">Anomali Terdeteksi</h2>
+                <AnomalyList items={anomalies} />
+              </div>
+            )}
+
+            {notes.length > 0 && (
+              <div className="mb-2">
+                <h2 className="mb-1.5 text-xs font-semibold text-ink-primary">Kendala - Catatan Kualitatif</h2>
+                <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
+                  {notes.map((n, i) => (
+                    <li key={i} className="rounded-md border border-border bg-surface p-2 text-xs shadow-sm">
+                      <span className="mr-1.5 rounded bg-background px-1 py-0.5 text-[10px] text-ink-muted">{formatHariRange(n)}</span>
+                      <span className="font-medium text-ink-secondary">{n.label}:</span> <span className="text-ink-primary">{n.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {unfilled.length > 0 && (
+              <div>
+                <h2 className="mb-1.5 text-xs font-semibold text-ink-primary">Kendala Belum Diisi Fasilitator</h2>
+                <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2 xl:grid-cols-3">
+                  {unfilled.map((n, i) => (
+                    <li key={i} className="rounded-md border border-border bg-surface px-2 py-1.5 text-[11px] text-ink-muted shadow-sm">
+                      <span className="mr-1.5 rounded bg-background px-1 py-0.5">{formatHariRange(n)}</span>
+                      {n.label}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
       </div>
     </div>
   );

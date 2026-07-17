@@ -11,8 +11,16 @@ interface StageBoxData {
   caption: string;
 }
 
-function StageBox({ stage, value, caption }: StageBoxData) {
+function StageBox({ stage, value, caption, compact }: StageBoxData & { compact?: boolean }) {
   const s = value == null ? null : TIER_STYLES[classifySeverity(value, "higherIsBetter").tier];
+  if (compact) {
+    return (
+      <div className={`flex-1 rounded-md border border-border px-2 py-1.5 ${s?.bg ?? "bg-background"}`}>
+        <div className="text-[10px] leading-tight text-ink-secondary">{stage}</div>
+        <div className={`text-base font-semibold leading-tight tabular-nums ${s?.text ?? "text-ink-muted"}`}>{value == null ? "-" : `${value}%`}</div>
+      </div>
+    );
+  }
   return (
     <div className={`flex-1 rounded-lg border border-border p-3 ${s?.bg ?? "bg-background"}`}>
       <div className="text-xs text-ink-secondary">{stage}</div>
@@ -22,7 +30,22 @@ function StageBox({ stage, value, caption }: StageBoxData) {
   );
 }
 
-function StageRow({ kategori, boxes }: { kategori: DocKategori; boxes: StageBoxData[] }) {
+function StageRow({ kategori, boxes, compact }: { kategori: DocKategori; boxes: StageBoxData[]; compact?: boolean }) {
+  if (compact) {
+    return (
+      <div className="rounded-lg border border-border bg-surface p-2.5">
+        <h3 className="mb-1.5 text-xs font-semibold text-ink-primary">Dokumen {kategori}</h3>
+        <div className="flex items-stretch gap-1.5">
+          {boxes.map((b, i) => (
+            <div key={b.stage} className="flex items-stretch gap-1.5">
+              <StageBox {...b} compact />
+              {i < boxes.length - 1 && <span className="self-center text-xs text-ink-muted">→</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="rounded-lg border border-border bg-surface p-4">
       <h3 className="mb-3 text-sm font-semibold text-ink-primary">Dokumen {kategori}</h3>
@@ -61,5 +84,5 @@ export function FacilDocumentFunnel({ row, kategori }: { row: FacilRow; kategori
     const raw = row[metric.kolom];
     return { stage, value: typeof raw === "number" ? raw : null, caption: "Aplikasi Revit" };
   });
-  return <StageRow kategori={kategori} boxes={boxes} />;
+  return <StageRow kategori={kategori} boxes={boxes} compact />;
 }
