@@ -285,7 +285,7 @@ export function FacilitatorAnalysisWorkbench({
     setGenError(null);
     try {
       const basePayload = mode === "alltime" ? { kodeFasil: row.kodeFasil } : { kodeFasil: row.kodeFasil, hari };
-      const payload = { ...basePayload, excludeAplikasi };
+      const payload = { ...basePayload, excludeAplikasi, history };
       const res = await fetch("/api/analyze/facilitator", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

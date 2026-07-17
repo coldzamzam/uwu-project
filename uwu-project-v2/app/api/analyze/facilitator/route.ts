@@ -7,38 +7,43 @@ import { callLLM } from "@uwu/core/llm";
 
 export async function POST(req: NextRequest) {
   try {
-    const { kodeFasil, hari, excludeAplikasi } = await req.json();
+    const reqBody = await req.json();
+    const { kodeFasil, hari, excludeAplikasi, history: clientHistory } = reqBody;
     if (!kodeFasil || typeof kodeFasil !== "string") {
       return NextResponse.json({ error: "kodeFasil wajib diisi." }, { status: 400 });
     }
     console.log(`[API] POST /api/analyze/facilitator - kodeFasil=${kodeFasil} hari=${hari ?? "(semua)"} excludeAplikasi=${!!excludeAplikasi}`);
 
-    const rows = await getFacilRows();
-    const fullHistory = getRowsForFacilitator(rows, kodeFasil);
-    if (fullHistory.length === 0) {
-      return NextResponse.json({ error: "Tidak ada data untuk fasilitator ini." }, { status: 404 });
-    }
     const todayHari = await getTodayHari();
-    // Anomali "future_data" (data untuk hari yang belum terjadi) HARUS dideteksi
-    // dari history MENTAH (sebelum dipotong ke todayHari di bawah) - kalau
-    // dideteksi SETELAH dipotong, baris "masa depan" itu sendiri sudah hilang
-    // duluan dan anomalinya tidak akan pernah ketemu.
-    const anomalyFields = fieldsWithFutureDataAnomaly(detectFacilitatorAnomalies(fullHistory, todayHari));
+    let history = clientHistory;
 
-    // Sheet punya baris placeholder untuk semua 14 hari sekaligus (termasuk hari
-    // yang belum tiba, lihat lib/sheet.ts) - kalau `hari` tidak dikirim (mode
-    // "alltime"), JANGAN pakai seluruh history mentah begitu saja, itu bisa
-    // membuat analisis membahas hari yang belum sungguh terjadi. Selalu batasi
-    // ke `todayHari` (hari nyata siklus berjalan), dan kalau `hari` eksplisit
-    // dikirim tapi lebih besar dari itu, clamp ke todayHari juga.
-    const boundaryHari = typeof hari === "number" ? Math.min(hari, todayHari) : todayHari;
-    const history = fullHistory.filter((r) => r.hari <= boundaryHari);
+    // Fallback if client doesn't send history
+    if (!history || !Array.isArray(history)) {
+      const rows = await getFacilRows();
+      const fullHistory = getRowsForFacilitator(rows, kodeFasil);
+      if (fullHistory.length === 0) {
+        return NextResponse.json({ error: "Tidak ada data untuk fasilitator ini." }, { status: 404 });
+      }
+      const boundaryHari = typeof hari === "number" ? Math.min(hari, todayHari) : todayHari;
+      history = fullHistory.filter((r) => r.hari <= boundaryHari);
+    }
+
     if (history.length === 0) {
       return NextResponse.json({ error: "Tidak ada data untuk fasilitator ini." }, { status: 404 });
     }
 
+    const anomalyFields = fieldsWithFutureDataAnomaly(detectFacilitatorAnomalies(history, todayHari));
+
     const messages = buildFacilitatorAnalysisMessages(history, { excludeAplikasi: !!excludeAplikasi, anomalyFields });
+    console.log(`\n\n--- [AI DEBUG] INPUT TO LLM UNTUK ${kodeFasil} ---`);
+    console.log(JSON.stringify(messages, null, 2));
+    
     const result = await callLLM(messages);
+    
+    console.log(`\n\n--- [AI DEBUG] OUTPUT DARI LLM UNTUK ${kodeFasil} ---`);
+    console.log(result);
+    console.log(`----------------------------------------------------\n\n`);
+    
     return NextResponse.json({ result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Terjadi kesalahan tak terduga.";

@@ -311,44 +311,79 @@ export function buildFacilitatorAnalysisMessages(
   const maxDay = history[history.length - 1].hari;
   const latest = history[history.length - 1];
   
-  const rawTable = (!latest.raw || Object.keys(latest.raw).length === 0) 
-    ? "(tidak ada data mentah)" 
-    : Object.entries(latest.raw).map(([k, v]) => `- ${k}: ${v}`).join("\n");
+  const dokTeknisTerunggah = Math.round(((latest.rataDokTeknisTerunggah as number) ?? 0) / 100 * 120);
+  const dokTeknisTerverifikasi = Math.round(((latest.rataDokTeknisTerverifikasi as number) ?? 0) / 100 * dokTeknisTerunggah);
+  const dokTeknisSesuai = Math.round(((latest.rataDokTeknisSesuai as number) ?? 0) / 100 * 120);
 
-  const userPrompt = `Fasilitator: ${latest.namaFasil} (${latest.kodeFasil})
-Koordinator: ${latest.namaKoor} (${latest.kodeKoor})
-Hari ke-${maxDay} dari siklus 14 hari.
+  const dokAdminTerunggah = Math.round(((latest.rataDokAdminTerunggah as number) ?? 0) / 100 * 220);
+  const dokAdminTerverifikasi = Math.round(((latest.rataDokAdminTerverifikasi as number) ?? 0) / 100 * dokAdminTerunggah);
+  const dokAdminSesuai = Math.round(((latest.rataDokAdminSesuai as number) ?? 0) / 100 * 220);
 
-## Tabel Persentase Terkini (Sesuai Log Fasilitator)
-${rawTable}
+  const promptData = {
+    fasilitator: latest.namaFasil,
+    kodeFasil: latest.kodeFasil,
+    koordinator: latest.namaKoor,
+    kodeKoor: latest.kodeKoor,
+    hariKe: maxDay,
+    skorAkhir: latest.skorAkhir ?? null,
+    // Kita filter data persentase hanya yang esensial agar AI tidak salah ambil
+    persentaseTerkini: {
+      "Sekolah Belum Login Aplikasi": `${latest.pctSekolahBelumLoginAplikasi ?? 0}%`,
+      "Sekolah Belum Punya Perencana": `${latest.pctTidakPunyaPerencanaLK ?? 0}%`,
+      "Sekolah Belum Sepakat RAB": `${latest.pctBelumSepakatRAB ?? 0}%`,
+      "Rata-rata Dok. Teknis Terunggah": `${latest.rataDokTeknisTerunggah ?? 0}%`,
+      "Rata-rata Dok. Teknis Terverifikasi": `${latest.rataDokTeknisTerverifikasi ?? 0}%`,
+      "Rata-rata Dok. Teknis Sesuai": `${latest.rataDokTeknisSesuai ?? 0}%`,
+      "Rata-rata Dok. Admin Terunggah": `${latest.rataDokAdminTerunggah ?? 0}%`,
+      "Rata-rata Dok. Admin Terverifikasi": `${latest.rataDokAdminTerverifikasi ?? 0}%`,
+      "Rata-rata Dok. Admin Sesuai": `${latest.rataDokAdminSesuai ?? 0}%`,
+    },
+    // Hitungan absolut disiapkan agar AI tidak usah menghitung sendiri (karena AI sering halusinasi)
+    angkaAbsolut: {
+      "Dokumen Teknis Terunggah": `${dokTeknisTerunggah} dari 120`,
+      "Dokumen Teknis Terverifikasi": `${dokTeknisTerverifikasi} dari ${dokTeknisTerunggah} terunggah`,
+      "Dokumen Teknis Sesuai": `${dokTeknisSesuai} dari 120`,
+      "Dokumen Admin Terunggah": `${dokAdminTerunggah} dari 220`,
+      "Dokumen Admin Terverifikasi": `${dokAdminTerverifikasi} dari ${dokAdminTerunggah} terunggah`,
+      "Dokumen Admin Sesuai": `${dokAdminSesuai} dari 220`,
+      "Sekolah Belum Login Aplikasi": Math.round(((latest.pctSekolahBelumLoginAplikasi as number) ?? 0) / 100 * 20),
+      "Sekolah Belum Punya Perencana": Math.round(((latest.pctTidakPunyaPerencanaLK as number) ?? 0) / 100 * 20),
+    },
+    catatanKualitatif: history.flatMap((row) =>
+      PROMPT_QUALITATIVE_FIELDS.filter(
+        (f) => typeof row[f.key] === "string" && (row[f.key] as string).trim() !== "" && row[f.key] !== "Belum Diisi"
+      ).map((f) => ({ hari: row.hari, label: f.label, isi: row[f.key] }))
+    )
+  };
 
-## Catatan Kualitatif Tambahan
-${buildQualitativeNotes(history)}
+  const userPrompt = `## Data Fasilitator
+\`\`\`json
+${JSON.stringify(promptData, null, 2)}
+\`\`\`
+
+## Basis Pengetahuan Checkpoint yang Relevan Hari Ini
+${buildKnowledgeSummary(maxDay)}
 
 Tolong buatkan analisis naratif yang persis meniru gaya penulisan contoh berikut. JANGAN gunakan bullet points, gunakan paragraf deskriptif yang SANGAT SINGKAT, PADAT, dan TO THE POINT (karena ini untuk koordinator yang membaca cepat). Fokuskan analisis PADA DATA TABEL PERSENTASE TERKINI di atas.
 
 ATURAN KETAT (WAJIB DIIKUTI):
 1. **DILARANG BERTELE-TELE**: Jangan gunakan frasa basa-basi/analisis kosong seperti "Hal ini menunjukkan bahwa...", "Ini menjadi akar masalah yang signifikan...", "Sementara itu...", atau "Ini menunjukkan komitmen...". Langsung tembak ke angka dan fakta.
 2. **DILARANG MENGULANG FAKTA KEBALIKAN**: Jangan menambahkan kalimat sisa yang tidak perlu (misal: "Sudah sesuai 5%. Sementara yang belum 95%." -> cukup sebut yang 5%).
-3. **UBAH PERSENTASE JADI ANGKA ABSOLUT (KECUALI DAPODIK)**: Koordinator tidak ingin membaca terlalu banyak persentase. Hitung angka absolutnya (boleh dibulatkan) menggunakan patokan ini:
-   - **Total Sekolah = 20 sekolah** (misal: 15% sekolah belum login -> "3 sekolah")
-   - **Total Dokumen Teknis = 120 dokumen** (6 dokumen x 20 sekolah). Untuk terunggah: kalikan persentase "Rata-rata % Dok. Teknis Terunggah" dengan 120. (Misal: 14.04% -> 16 dari 120 dokumen teknis).
-   - **Total Dokumen Admin = 220 dokumen** (11 dokumen x 20 sekolah). Untuk terunggah: kalikan persentase "Rata-rata % Dok. Admin Terunggah" dengan 220. (Misal: 68.42% -> 150 dari 220 dokumen admin).
-4. **AWAS HALUSINASI ANGKA**: DILARANG KERAS menyalin angka-angka dari teks "Contoh Referensi Analisis Manusia" ke dalam jawabanmu. Angka di contoh itu HANYA DUMMY untuk mencontohkan format narasi. Kamu WAJIB MENGAMBIL angka asli dari "Tabel Persentase Terkini" di atas.
-4b. **JANGAN TERTUKAR ANTAR INDIKATOR YANG NAMANYA MIRIP**: Kesalahan paling sering terjadi adalah menyebut angka indikator A tapi memberi label indikator B yang namanya berdekatan/mirip - terutama tertukar antara "Terunggah" vs "Terverifikasi" vs "Sesuai" (tiga tahap berbeda, baik untuk Admin maupun Teknis). SEBELUM menulis tiap kalimat berangka, cocokkan dulu KATA PERSIS di "Tabel Persentase Terkini".
-5. **KONTEKS TERVERIFIKASI**: Persentase dokumen terverifikasi (baik teknis/admin) dihitung DARI dokumen yang sudah terunggah, bukan dari total keseluruhan. Contoh: Jika ada 150 dokumen terunggah, dan terverifikasi rata-rata 51.20%, maka artinya ada 76 dokumen terverifikasi dari 150 dokumen terunggah.
-6. **NARASI SEBAB-AKIBAT (ROOT CAUSE)**: Hubungkan kalimat dengan logika sebab-akibat lugas agar akar masalahnya terlihat jelas, terutama jika ada Catatan Kualitatif.
-7. **DAHULUKAN HAMBATAN UTAMA**: Susun poin urutan analisis (setelah pembuka & checkpoint) mulai dari kendala yang paling menghambat progres (contoh: belum login aplikasi harus dibahas sebelum dokumen, karena jika belum login maka tidak bisa unggah dokumen). Bagian indikator yang sudah 100% atau berjalan baik taruh di paling akhir saja, atau dihilangkan jika terlalu panjang.
+3. **GUNAKAN ANGKA ABSOLUT DARI JSON**: Koordinator tidak ingin membaca terlalu banyak persentase. Gunakan teks langsung dari \`angkaAbsolut\` di JSON "Data Fasilitator". Kamu tidak perlu menghitung manual lagi.
+4. **AWAS HALUSINASI ANGKA**: DILARANG KERAS menyalin angka-angka dari teks "Contoh Referensi Analisis Manusia" ke dalam jawabanmu.
+5. **NARASI SEBAB-AKIBAT (ROOT CAUSE)**: Hubungkan kalimat dengan logika sebab-akibat lugas agar akar masalahnya terlihat jelas, terutama jika ada Catatan Kualitatif.
+6. **PENGHILANGAN TOTAL JIKA 100% ATAU SEMPURNA (SANGAT PENTING)**: Jika suatu metrik sudah 100% (sempurna) atau 0 masalah, KAMU DILARANG MENYEBUTKANNYA SAMA SEKALI. Jangan membuat kalimat basa-basi seperti "Semua sekolah sudah login". Jika semua dokumen admin sudah lengkap 220 dari 220, JANGAN buat paragraf tentang dokumen admin. Hapus dari hasil akhirmu. Fokus HANYA pada metrik yang masih bermasalah (di bawah target).
 
 Struktur Paragraf yang Wajib Diikuti:
 1. **Pembuka**: Sebutkan nilai capaian fasil (Skor Akhir) dengan format: "Nilai capaian fasil atas [Nama Fasil] sangat rendah di angka [Skor Akhir]/100.00." (Sesuaikan kata sifat "sangat rendah/cukup/baik" berdasarkan skor).
 2. **Checkpoint**: Sebutkan apakah hari ini ada checkpoint baru atau masih melanjutkan checkpoint sebelumnya, lalu sebutkan apakah sudah tercapai atau belum.
-3. **Analisis Kendala Utama (Urutan Fleksibel, Dahulukan Masalah)**:
-   - **Aplikasi**: Jika ada yang belum login, sebutkan. (Contoh: "Masih ada 5 sekolah yang bahkan belum login ke aplikasi...")
-   - **Perencana**: Status jumlah sekolah belum punya perencana, kaitkan dampaknya. (Contoh: "Masih ada 14 sekolah yang belum memiliki perencana, sehingga terkendala pada...")
-   - **Dokumen Teknis**: Terunggah (absolut dari 120) & minimumnya. Terverifikasi (absolut dari terunggah). Sesuai (dari total).
-   - **Dokumen Admin**: Terunggah (absolut dari 220) & minimumnya. Terverifikasi (absolut dari terunggah). Sesuai (dari total).
-   - **Dapodik/Biodata**: Jika ada kendala, sebutkan persentasenya.
+3. **Analisis Kendala Utama (HANYA YANG BERMASALAH)**:
+   - Evaluasi setiap kategori berikut HANYA JIKA persentasenya belum sempurna. Jika sempurna (100%), LEWATI kategori tersebut sepenuhnya.
+   - **Aplikasi**: Bahas hanya jika ada sekolah yang belum login.
+   - **Perencana**: Bahas hanya jika ada sekolah yang belum punya perencana, sebutkan dampaknya.
+   - **Dokumen Teknis**: Bahas hanya jika belum 120 terunggah/terverifikasi/sesuai. Sebutkan absolut terunggah, lalu absolut terverifikasi (dari yg terunggah), lalu absolut sesuai (dari 120).
+   - **Dokumen Admin**: Bahas hanya jika belum 220 terunggah/terverifikasi/sesuai. Sebutkan absolut terunggah, lalu absolut terverifikasi (dari yg terunggah), lalu absolut sesuai (dari 220).
+   - **Lainnya (Dapodik/RAB)**: Bahas hanya jika ada hambatan.
 
 Contoh Referensi Analisis Manusia (Tiru KERINGKASANNYA dan POLA KALIMATNYA, tapi JANGAN TIRU ANGKA-ANGKANYA):
 [Contoh 1]
@@ -367,7 +402,7 @@ Dokumen teknis terverifikasi sesuai masih belum ada.
 Dokumen admin terunggah hanya 150 dari 220 dokumen (rata-rata 68.42%). Ada sekolah yang belum mengunggah satupun dokumen (minimum 0%).
 Dokumen admin terverifikasi hanya 76 dari 150 dokumen admin terunggah (rata-rata 51.20%)."
 
-PENTING MUTLAK: Gunakan HANYA data dari "Tabel Persentase Terkini" untuk menyusun angka-angkanya. Dilarang keras meniru angka dari contoh.`;
+PENTING MUTLAK: Gunakan HANYA data dari JSON "Data Fasilitator" untuk menyusun angka-angkanya. Dilarang keras meniru angka dari contoh.`;
 
   return [
     { role: "system", content: "Anda adalah analis data. Jawab dengan analisis naratif sesuai contoh dan format yang diinstruksikan. Dilarang menggunakan bullet point atau format markdown lain, gunakan paragraf biasa." },
