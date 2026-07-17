@@ -119,20 +119,20 @@ export function AllFasilRawMatriksTable({ rows }: { rows: FacilRow[] }) {
         </span>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-sm transition-shadow hover:shadow-md max-h-[600px] overflow-y-auto relative">
-        <table className="w-full text-left text-sm text-ink-secondary">
-          <thead className="sticky top-0 z-20 border-b border-border bg-background/95 text-xs uppercase text-ink-muted backdrop-blur-sm">
+      <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-sm transition-shadow hover:shadow-md max-h-[480px] overflow-y-auto relative">
+        <table className="w-full text-left text-xs text-ink-secondary">
+          <thead className="sticky top-0 z-20 border-b border-border bg-background/95 text-[10px] uppercase text-ink-muted backdrop-blur-sm">
             <tr>
-              <th className="sticky left-0 z-30 min-w-[80px] whitespace-normal bg-background/95 px-4 font-medium shadow-[1px_1px_0_0_var(--tw-shadow-color)] shadow-border text-center">
+              <th className="sticky left-0 z-30 min-w-[64px] whitespace-normal bg-background/95 px-2 py-1.5 font-medium shadow-[1px_1px_0_0_var(--tw-shadow-color)] shadow-border text-center">
                 Skor Akhir
               </th>
-              <th className="sticky left-[80px] z-30 min-w-[200px] whitespace-normal bg-background/95 px-4 font-medium shadow-[1px_1px_0_0_var(--tw-shadow-color)] shadow-border">
+              <th className="sticky left-[64px] z-30 min-w-[150px] whitespace-normal bg-background/95 px-2 py-1.5 font-medium shadow-[1px_1px_0_0_var(--tw-shadow-color)] shadow-border">
                 Fasilitator
               </th>
               {SKOR_AKHIR_COLUMNS.map((col, idx) => (
                 <th
                   key={idx}
-                  className="min-w-[130px] max-w-[180px] whitespace-normal px-4 py-3 font-medium leading-snug text-center align-bottom shadow-[0_1px_0_0_var(--tw-shadow-color)] shadow-border"
+                  className="min-w-[80px] max-w-[110px] whitespace-normal px-1.5 py-1.5 font-medium leading-snug text-center align-bottom shadow-[0_1px_0_0_var(--tw-shadow-color)] shadow-border"
                 >
                   {col.header}
                 </th>
@@ -146,25 +146,25 @@ export function AllFasilRawMatriksTable({ rows }: { rows: FacilRow[] }) {
 
               return (
                 <tr key={rowIdx} className="transition-colors hover:bg-background/40">
-                  <td className={`sticky left-0 z-10 whitespace-nowrap px-4 py-2.5 text-center shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-border bg-surface/95 backdrop-blur-sm ${skorColor}`}>
+                  <td className={`sticky left-0 z-10 whitespace-nowrap px-2 py-1 text-center shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-border bg-surface/95 backdrop-blur-sm ${skorColor}`}>
                     {row.skorAkhir != null ? `${row.skorAkhir}%` : "-"}
                   </td>
-                  <td className="sticky left-[80px] z-10 whitespace-normal bg-surface/95 px-4 py-3 font-medium backdrop-blur-sm shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-border">
+                  <td className="sticky left-[64px] z-10 whitespace-normal bg-surface/95 px-2 py-1 font-medium backdrop-blur-sm shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-border">
                     <div className="flex flex-col">
                       <Link
                         href={`/fasilitator/${row.kodeFasil}`}
-                        className="text-series-1 hover:underline truncate max-w-[180px]"
+                        className="text-series-1 hover:underline truncate max-w-[140px]"
                         title={row.namaFasil}
                       >
                         {row.namaFasil}
                       </Link>
-                      <span className="text-xs text-ink-muted">{row.kodeFasil}</span>
+                      <span className="text-[10px] text-ink-muted">{row.kodeFasil}</span>
                     </div>
                   </td>
                   {SKOR_AKHIR_COLUMNS.map((col, idx) => {
                     const rawValue = row.raw[col.header] ?? "-";
                     return (
-                      <td key={idx} className={`whitespace-nowrap px-4 py-2.5 text-center ${percentCellColorClass(rawValue)}`}>
+                      <td key={idx} className={`whitespace-nowrap px-1.5 py-1 text-center ${percentCellColorClass(rawValue)}`}>
                         {rawValue}
                       </td>
                     );

@@ -16,7 +16,7 @@ export default function RootLayout({
     <html lang="id" className="h-full antialiased" suppressHydrationWarning>
       <body className="min-h-full flex flex-col bg-background text-ink-primary">
         <header className="border-b border-border bg-surface">
-          <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
+          <div className="mx-auto flex max-w-[1600px] items-center gap-6 px-6 py-3">
             <Link href="/" className="text-sm font-semibold">
               Monitoring Fasilitator <span className="text-ink-muted">v2</span>
             </Link>
@@ -27,22 +27,10 @@ export default function RootLayout({
               <Link href="/analisis-massal" className="hover:text-ink-primary">
                 Analisis Massal
               </Link>
-              <Link href="/perbandingan" className="hover:text-ink-primary">
-                Perbandingan
-              </Link>
-              <Link href="/progres-dokumen" className="hover:text-ink-primary">
-                Progres Dokumen
-              </Link>
-              <Link href="/anomali" className="hover:text-ink-primary">
-                Anomali
-              </Link>
-              <Link href="/laporan" className="hover:text-ink-primary">
-                Laporan
-              </Link>
             </nav>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
+        <main className="mx-auto w-full max-w-[1600px] flex-1 px-6 py-6">{children}</main>
       </body>
     </html>
   );
