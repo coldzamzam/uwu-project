@@ -99,6 +99,7 @@ function blankFacilRow(): FacilRow {
     kendalaPenyepakatanRAB: null,
     analisis: null,
     catatanAdmin: null,
+    skorAkhir: null,
     raw: {},
   };
 }
@@ -144,8 +145,27 @@ async function tryFetchCsv(url: string): Promise<string | null> {
   }
 }
 
-/** Fetch + parse tab "Isian" satu fasilitator jadi satu FacilRow (kondisi
- * TERKINI-nya saja - lihat catatan ISIAN_SHEET_NAME/parseMatriksCsv di atas).
+function parseLogCsv(csv: string): { values: string[] } | null {
+  const parsed = Papa.parse<string[]>(csv, { header: false, skipEmptyLines: false });
+  const rows = parsed.data;
+  const headerIdx = rows.findIndex((r) => (r[0] ?? "").trim() === "Atmin");
+  if (headerIdx === -1) return null;
+  
+  let lastDataRow = null;
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    if ((rows[i][2] ?? "").trim() !== "") {
+      lastDataRow = rows[i];
+    }
+  }
+  
+  if (!lastDataRow) return null;
+  
+  return {
+    values: lastDataRow.slice(6, 6 + SKOR_AKHIR_COLUMNS.length),
+  };
+}
+
+/** Fetch + parse tab "Isian" (untuk Skor Akhir) dan "Log" (untuk data mentah).
  * Coba by-name dulu (ISIAN_SHEET_NAME), fallback ke gid (MATRIKS_GID) kalau
  * itu gagal. null kalau dua-duanya gagal (dicatat via console.warn, TIDAK
  * throw - satu fasilitator gagal tidak boleh menggagalkan semua). */
@@ -153,20 +173,24 @@ async function fetchFacilitatorMatriks(entry: ControllerFacilitatorEntry): Promi
   const byNameUrl = `https://docs.google.com/spreadsheets/d/${entry.spreadsheetId}/gviz/tq?${new URLSearchParams({ tqx: "out:csv", sheet: ISIAN_SHEET_NAME }).toString()}`;
   const byGidUrl = `https://docs.google.com/spreadsheets/d/${entry.spreadsheetId}/export?format=csv&gid=${MATRIKS_GID}`;
 
-  let csv = await tryFetchCsv(byNameUrl);
-  let matriks = csv ? parseMatriksCsv(csv) : null;
-  if (!matriks) {
-    csv = await tryFetchCsv(byGidUrl);
-    matriks = csv ? parseMatriksCsv(csv) : null;
+  let csvIsian = await tryFetchCsv(byNameUrl);
+  let matriksIsian = csvIsian ? parseMatriksCsv(csvIsian) : null;
+  if (!matriksIsian) {
+    csvIsian = await tryFetchCsv(byGidUrl);
+    matriksIsian = csvIsian ? parseMatriksCsv(csvIsian) : null;
   }
-  if (!matriks) {
+  if (!matriksIsian) {
     console.warn(`[sheet] Tab "${ISIAN_SHEET_NAME}" (atau gid=${MATRIKS_GID} fallback) tidak bisa diakses/di-parse untuk ${entry.kodeFasil} - kemungkinan sheet belum di-share publik, atau nama/gid tab beda di sheet ini.`);
     return null;
   }
+  
+  const logUrl = `https://docs.google.com/spreadsheets/d/${entry.spreadsheetId}/gviz/tq?${new URLSearchParams({ tqx: "out:csv", sheet: "Log" }).toString()}`;
+  const csvLog = await tryFetchCsv(logUrl);
+  const matriksLog = csvLog ? parseLogCsv(csvLog) : null;
 
-  const [atmin, hariKeRaw, kodeFasil, namaFasil, kodeKoor, namaKoor] = matriks.identity;
+  const [atmin, hariKeRaw, kodeFasil, namaFasil, kodeKoor, namaKoor] = matriksIsian.identity;
   const hari = parseInt((hariKeRaw ?? "").trim(), 10) || 0;
-  const skorAkhir = parsePercentCell(matriks.skorAkhirRaw);
+  const skorAkhir = parsePercentCell(matriksIsian.skorAkhirRaw);
 
   const row = blankFacilRow();
   row.atmin = (atmin ?? "").trim() || entry.atmin;
@@ -176,11 +200,15 @@ async function fetchFacilitatorMatriks(entry: ControllerFacilitatorEntry): Promi
   row.namaFasil = (namaFasil ?? "").trim() || entry.namaFasil;
   row.kodeKoor = (kodeKoor ?? "").trim();
   row.namaKoor = (namaKoor ?? "").trim();
-  if (skorAkhir != null) row.nilaiRisiko = 100 - skorAkhir;
+  if (skorAkhir != null) {
+    row.skorAkhir = skorAkhir;
+  }
+
+  const rawValues = matriksLog ? matriksLog.values : matriksIsian.values;
 
   const rawRecord: Record<string, string> = {};
   SKOR_AKHIR_COLUMNS.forEach((col, i) => {
-    rawRecord[col.header] = matriks.values[i] ?? "";
+    rawRecord[col.header] = rawValues[i] ?? "";
   });
   row.raw = rawRecord;
   Object.assign(row, applySkorAkhirColumns(rawRecord));

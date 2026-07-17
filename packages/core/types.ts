@@ -49,6 +49,8 @@ export interface FacilRow {
   pctDokTeknisSesuaiDibawah90: CellValue;
   pctBelumSepakatRAB: CellValue;
   nilaiRisiko: CellValue;
+  skorAkhir: CellValue;
+
 
   kendalaKomunikasi: CellValue;
   kendalaPanlakFormatTemplate: CellValue;

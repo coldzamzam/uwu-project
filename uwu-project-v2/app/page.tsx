@@ -2,16 +2,14 @@ import Link from "next/link";
 import { getFacilRows, getTodayHari, isUsingSampleData } from "@/lib/sheet";
 import { getAvailableDays, getFacilitators, getRowsForDay, summarizeDay } from "@uwu/core/metrics";
 import { getCheckpointCompliance, countNonCompliant } from "@uwu/core/compliance";
-import { compareLkAplikasi, scanAllAnomalies } from "@uwu/core/anomalies";
+import { scanAllAnomalies } from "@uwu/core/anomalies";
 import { countQualitativeActivityByDay } from "@uwu/core/notes";
 import { DaySelector } from "@/components/DaySelector";
 import { ModeToggle } from "@/components/ModeToggle";
 import { SummaryCards } from "@/components/SummaryCards";
 import { StatTile } from "@/components/StatTile";
-import { FacilitatorTable } from "@/components/FacilitatorTable";
 import { AnalysisPanel } from "@/components/AnalysisPanel";
 import { QualitativeActivityChart } from "@/components/QualitativeActivityChart";
-import { LkAplikasiTable } from "@/components/LkAplikasiTable";
 import { AllFasilRawMatriksTable } from "@/components/AllFasilRawMatriksTable";
 
 export default async function DashboardPage({
@@ -37,7 +35,6 @@ export default async function DashboardPage({
   const nonCompliantFacilCount = [...complianceCounts.values()].filter((c) => c > 0).length;
   const hariRelLabel = hari === todayHari ? "hari ini" : hari < todayHari ? "sudah lewat" : "belum terjadi";
 
-  const lkAplikasiRows = compareLkAplikasi(rows, todayHari);
   const anomalyReports = scanAllAnomalies(rows, todayHari);
   const activity = countQualitativeActivityByDay(rows, todayHari);
 
@@ -88,13 +85,6 @@ export default async function DashboardPage({
       />
 
       <AllFasilRawMatriksTable rows={dayRows} />
-
-      <FacilitatorTable rows={dayRows} hari={hari} complianceCounts={complianceCounts} />
-
-      <div>
-        <h2 className="mb-3 text-sm font-semibold text-ink-primary">Perbandingan Hasil LK vs Aplikasi</h2>
-        <LkAplikasiTable rows={lkAplikasiRows} />
-      </div>
     </div>
   );
 }

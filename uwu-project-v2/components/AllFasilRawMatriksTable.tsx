@@ -1,8 +1,54 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import { SKOR_AKHIR_COLUMNS } from "@/lib/skorAkhirColumns";
 import type { FacilRow } from "@uwu/core/types";
+import { deriveKampus } from "@uwu/core/metrics";
 import Link from "next/link";
 
+type SortKey = "nama" | "koordinator" | "skorAkhir";
+
+const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
+  { key: "skorAkhir", label: "Skor Akhir" },
+  { key: "nama", label: "Nama Fasilitator (A-Z)" },
+  { key: "koordinator", label: "Koordinator (A-Z)" },
+];
+
 export function AllFasilRawMatriksTable({ rows }: { rows: FacilRow[] }) {
+  const [sortKey, setSortKey] = useState<SortKey>("skorAkhir");
+  const [asc, setAsc] = useState(false);
+  const [kampus, setKampus] = useState<string>("semua");
+  const [koordinator, setKoordinator] = useState<string>("semua");
+
+  const kampusOptions = useMemo(
+    () => Array.from(new Set(rows.map((r) => deriveKampus(r.kodeFasil)))).sort(),
+    [rows]
+  );
+  const koordinatorOptions = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.namaKoor))).sort(),
+    [rows]
+  );
+
+  const filtered = useMemo(
+    () =>
+      rows.filter(
+        (r) => (kampus === "semua" || deriveKampus(r.kodeFasil) === kampus) && (koordinator === "semua" || r.namaKoor === koordinator)
+      ),
+    [rows, kampus, koordinator]
+  );
+
+  const sorted = useMemo(() => {
+    const copy = [...filtered];
+    copy.sort((a, b) => {
+      let diff = 0;
+      if (sortKey === "nama") diff = a.namaFasil.localeCompare(b.namaFasil);
+      if (sortKey === "koordinator") diff = a.namaKoor.localeCompare(b.namaKoor);
+      if (sortKey === "skorAkhir") diff = (typeof a.skorAkhir === "number" ? a.skorAkhir : -1) - (typeof b.skorAkhir === "number" ? b.skorAkhir : -1);
+      return asc ? diff : -diff;
+    });
+    return copy;
+  }, [filtered, sortKey, asc]);
+
   if (!rows || rows.length === 0) return null;
 
   return (
@@ -10,11 +56,77 @@ export function AllFasilRawMatriksTable({ rows }: { rows: FacilRow[] }) {
       <h2 className="mb-3 text-sm font-semibold text-ink-primary">
         Tabel Persentase Mentah (Semua Fasilitator)
       </h2>
+      
+      <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+        <label className="flex items-center gap-1.5 text-ink-secondary">
+          Kampus:
+          <select
+            value={kampus}
+            onChange={(e) => setKampus(e.target.value)}
+            className="rounded border border-border bg-surface px-2 py-1 text-ink-primary"
+          >
+            <option value="semua">Semua</option>
+            {kampusOptions.map((k) => (
+              <option key={k} value={k}>{k}</option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center gap-1.5 text-ink-secondary">
+          Koordinator:
+          <select
+            value={koordinator}
+            onChange={(e) => setKoordinator(e.target.value)}
+            className="max-w-[220px] rounded border border-border bg-surface px-2 py-1 text-ink-primary"
+          >
+            <option value="semua">Semua</option>
+            {koordinatorOptions.map((k) => (
+              <option key={k} value={k}>{k}</option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center gap-1.5 text-ink-secondary">
+          Urutkan:
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as SortKey)}
+            className="rounded border border-border bg-surface px-2 py-1 text-ink-primary"
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.key} value={o.key}>{o.label}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setAsc(!asc)}
+            title={asc ? "Menaik (klik untuk menurun)" : "Menurun (klik untuk menaik)"}
+            className="rounded border border-border bg-surface px-2 py-1 text-ink-primary hover:bg-background"
+          >
+            {asc ? "▲" : "▼"}
+          </button>
+        </label>
+        {(kampus !== "semua" || koordinator !== "semua") && (
+          <button
+            onClick={() => {
+              setKampus("semua");
+              setKoordinator("semua");
+            }}
+            className="text-xs text-series-1 hover:underline"
+          >
+            Reset filter
+          </button>
+        )}
+        <span className="text-xs text-ink-muted">
+          Menampilkan {sorted.length} dari {rows.length}
+        </span>
+      </div>
+
       <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-sm transition-shadow hover:shadow-md max-h-[600px] overflow-y-auto relative">
         <table className="w-full text-left text-sm text-ink-secondary">
           <thead className="sticky top-0 z-20 border-b border-border bg-background/95 text-xs uppercase text-ink-muted backdrop-blur-sm">
             <tr>
-              <th className="sticky left-0 z-30 min-w-[200px] whitespace-normal bg-background/95 px-4 py-3 font-medium shadow-[1px_1px_0_0_var(--tw-shadow-color)] shadow-border">
+              <th className="sticky left-0 z-30 min-w-[80px] whitespace-normal bg-background/95 px-4 font-medium shadow-[1px_1px_0_0_var(--tw-shadow-color)] shadow-border text-center">
+                Skor Akhir
+              </th>
+              <th className="sticky left-[80px] z-30 min-w-[200px] whitespace-normal bg-background/95 px-4 font-medium shadow-[1px_1px_0_0_var(--tw-shadow-color)] shadow-border">
                 Fasilitator
               </th>
               {SKOR_AKHIR_COLUMNS.map((col, idx) => (
@@ -28,12 +140,22 @@ export function AllFasilRawMatriksTable({ rows }: { rows: FacilRow[] }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {rows.map((row, rowIdx) => {
+            {sorted.map((row, rowIdx) => {
               if (!row.raw || Object.keys(row.raw).length === 0) return null;
               
+              let skorColor = "text-ink-primary";
+              if (typeof row.skorAkhir === "number") {
+                if (row.skorAkhir === 100) skorColor = "bg-status-good/20 text-ink-primary font-medium";
+                else if (row.skorAkhir < 50) skorColor = "bg-status-critical/20 text-ink-primary font-medium";
+                else if (row.skorAkhir < 90) skorColor = "bg-status-warning/20 text-ink-primary font-medium";
+              }
+
               return (
                 <tr key={rowIdx} className="transition-colors hover:bg-background/40">
-                  <td className="sticky left-0 z-10 whitespace-normal bg-surface/95 px-4 py-3 font-medium backdrop-blur-sm shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-border">
+                  <td className={`sticky left-0 z-10 whitespace-nowrap px-4 py-2.5 text-center shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-border bg-surface/95 backdrop-blur-sm ${skorColor}`}>
+                    {row.skorAkhir != null ? `${row.skorAkhir}%` : "-"}
+                  </td>
+                  <td className="sticky left-[80px] z-10 whitespace-normal bg-surface/95 px-4 py-3 font-medium backdrop-blur-sm shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-border">
                     <div className="flex flex-col">
                       <Link
                         href={`/fasilitator/${row.kodeFasil}`}
