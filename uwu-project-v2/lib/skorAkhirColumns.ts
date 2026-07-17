@@ -59,15 +59,34 @@ export const SKOR_AKHIR_COLUMNS: SkorAkhirColumn[] = [
   { header: "% Sekolah Sepakat RAB", kolom: "pctBelumSepakatRAB", bobot: 12, invert: true, short: "RAB" },
 ];
 
+/** Kode singkat murni utk pembacaan cepat (checkpoint 8-13, yang punya 3
+ * kolom %/Rata/Min - checkpoint lain sudah cukup jelas dari nama pendeknya
+ * sendiri di `short`, mis. "Dihubungi"/"RAB"). Nomor checkpoint (dari
+ * packages/core/knowledge/checkpoints.ts, lihat groupSkorAkhirColumns) tetap
+ * jadi SUMBER KEBENARAN - ini cuma alias tampilan supaya "Dokumen admin
+ * terunggah" dkk. tidak perlu dieja penuh/hover dulu buat dibedakan dari
+ * checkpoint bertema mirip (Terverifikasi/Sesuai, Admin/Teknis). */
+const CHECKPOINT_SHORT_CODE: Partial<Record<number, string>> = {
+  8: "DAU",
+  9: "DAT",
+  10: "DAS",
+  11: "DTU",
+  12: "DTT",
+  13: "DTS",
+};
+
 export interface SkorAkhirHeaderGroup {
   /** Nomor checkpoint asli (1-14, packages/core/knowledge/checkpoints.ts) -
-   * label baris pertama header. 0 kalau kolom ini (seharusnya tidak pernah
-   * terjadi untuk SKOR_AKHIR_COLUMNS - semuanya SEHARUSNYA punya checkpoint,
-   * tapi dijaga null-safe kalau suatu saat kolom baru ditambah sebelum
-   * dipetakan ke checkpoints.ts). */
+   * SUMBER KEBENARAN dari label baris pertama header. 0 kalau kolom ini
+   * (seharusnya tidak pernah terjadi untuk SKOR_AKHIR_COLUMNS - semuanya
+   * SEHARUSNYA punya checkpoint, tapi dijaga null-safe kalau suatu saat
+   * kolom baru ditambah sebelum dipetakan ke checkpoints.ts). */
   checkpointNo: number;
   checkpointName: string;
   activeFromDay: number;
+  /** Alias singkat (lihat CHECKPOINT_SHORT_CODE) - undefined untuk
+   * checkpoint yang tidak punya kode (nama pendeknya sendiri sudah jelas). */
+  shortCode?: string;
   span: number;
   cols: SkorAkhirColumn[];
 }
@@ -92,6 +111,7 @@ export function groupSkorAkhirColumns(columns: SkorAkhirColumn[] = SKOR_AKHIR_CO
         checkpointNo,
         checkpointName: found?.group.name ?? "?",
         activeFromDay: found?.group.activeFromDay ?? 0,
+        shortCode: CHECKPOINT_SHORT_CODE[checkpointNo],
         span: 1,
         cols: [col],
       });

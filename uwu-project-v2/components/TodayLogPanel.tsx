@@ -62,7 +62,12 @@ export function TodayLogPanel({ todayHari, logs }: { todayHari: number; logs: Da
 
   return (
     <div>
-      <h2 className="mb-3 text-sm font-semibold text-ink-primary">Log Hari Ini (Hari {todayHari})</h2>
+      <h2 className="mb-1 text-sm font-semibold text-ink-primary">Log Hari Ini (Hari {todayHari})</h2>
+      <p className="mb-3 text-xs text-ink-muted">
+        Header &ldquo;H2&rdquo;-&ldquo;H12&rdquo; = Hari ke- checkpoint itu aktif (sesuai tab &ldquo;Check Point&rdquo;) -
+        angkanya bisa berulang karena beberapa checkpoint aktif di hari yang sama, kode di sebelahnya (DAU/DAT/dst)
+        yang membedakan checkpoint mana. Arahkan kursor untuk lihat nama lengkapnya.
+      </p>
       <div className="w-full rounded-xl border border-border bg-surface shadow-sm">
         <table className="w-full table-fixed text-left text-sm text-ink-secondary">
           <thead className="border-b border-border bg-background/50 text-[10px] uppercase text-ink-muted">
@@ -80,7 +85,8 @@ export function TodayLogPanel({ todayHari, logs }: { todayHari: number; logs: Da
                   title={`Checkpoint ${g.checkpointNo}. ${g.checkpointName} (aktif sejak Hari ${g.activeFromDay})`}
                   className="border-l border-border/60 px-1 py-1 text-center font-semibold leading-tight"
                 >
-                  {g.checkpointNo || "?"}
+                  H{g.activeFromDay || "?"}
+                  {g.shortCode && <span className="ml-0.5 font-normal text-ink-muted">{g.shortCode}</span>}
                 </th>
               ))}
               <th rowSpan={2} className="w-16 whitespace-nowrap border-l border-border/60 px-1 py-2 text-center align-bottom font-medium">
