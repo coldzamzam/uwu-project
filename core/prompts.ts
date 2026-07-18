@@ -387,17 +387,17 @@ Nilai capaian fasil atas [Nama Fasil] berada di angka [Skor Akhir]. [Beri 1-2 ka
 
 Checkpoint wajib untuk hari ke-${maxDay} yaitu [Sebutkan checkpoint hari ini dan tujuannya]. Namun, sampai saat ini [sebutkan progresnya, misal: tidak ada sekolah yang sudah sepakat RAB (0%)]. Beberapa hal berikut berpotensi berpengaruh terhadap capaian tersebut:
 
-*Sekolah login aplikasi:* [Penjelasan objektif]
-*Perencana:* [Penjelasan objektif]
-*Unggah dokumen admin:* [Penjelasan objektif + Penjabaran angka /220 dokumen]
-*Verifikasi dokumen admin:* [Penjelasan objektif]
-*Verifikasi dokumen admin "Sesuai":* [Penjelasan objektif]
-*Unggah dokumen teknis:* [Penjelasan objektif + Penjabaran angka /120 dokumen]
-*Verifikasi dokumen teknis:* [Penjelasan objektif]
-*Verifikasi dokumen teknis "Sesuai":* [Penjelasan objektif]
+Sekolah login aplikasi: [Penjelasan objektif]
+Perencana: [Penjelasan objektif]
+Unggah dokumen admin: [Penjelasan objektif + Penjabaran angka /220 dokumen]
+Verifikasi dokumen admin: [Penjelasan objektif]
+Verifikasi dokumen admin "Sesuai": [Penjelasan objektif]
+Unggah dokumen teknis: [Penjelasan objektif + Penjabaran angka /120 dokumen]
+Verifikasi dokumen teknis: [Penjelasan objektif]
+Verifikasi dokumen teknis "Sesuai": [Penjelasan objektif]
 
-*Catatan lain:*
-* [Jelaskan sisa metrik yang belum dibahas di atas HANYA JIKA bermasalah, seperti Biodata, Dapodik, Keterhubungan, Panlak, Template. Ingat, jika ada metrik di catatan lain ini yang belum 100%, cantumkan juga kalimat Keterangan Kendala wajibnya jika tidak ada catatan kualitatif].
+Catatan lain:
+- [Jelaskan sisa metrik yang belum dibahas di atas HANYA JIKA bermasalah, seperti Biodata, Dapodik, Keterhubungan, Panlak, Template. Ingat, jika ada metrik di catatan lain ini yang belum 100%, cantumkan juga kalimat Keterangan Kendala wajibnya jika tidak ada catatan kualitatif].
 
 PENTING MUTLAK: Gunakan HANYA data dari JSON "Data Fasilitator" untuk menyusun angka-angkanya.`;
 
