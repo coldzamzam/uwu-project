@@ -1,11 +1,11 @@
-import { getFacilRows, getTodayHari } from "@/lib/sheet";
+import { getFacilRowsForSelectedAdmin, getTodayHari } from "@/lib/sheet";
 import { groupRowsByFacilitator, getCurrentRow } from "@uwu/core/metrics";
 import { DocumentProgressFunnel } from "@/components/DocumentProgressFunnel";
 import { DocumentProgressTable } from "@/components/DocumentProgressTable";
 import { SeverityLegend } from "@/components/SeverityBadge";
 
 export default async function ProgresDokumenPage() {
-  const rows = await getFacilRows();
+  const rows = await getFacilRowsForSelectedAdmin();
   const todayHari = await getTodayHari();
 
   const byFasil = groupRowsByFacilitator(rows);

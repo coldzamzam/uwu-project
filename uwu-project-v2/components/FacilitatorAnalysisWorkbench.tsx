@@ -9,6 +9,7 @@ import { KENDALA_ACTIVE_FROM_DAY, classifyKendalaText } from "@uwu/core/complian
 import type { CheckpointCompliance } from "@uwu/core/compliance";
 import { classifySeverity } from "@uwu/core/severity";
 import { findIndicator } from "@uwu/core/knowledge/checkpoints";
+import { buildFacilitatorCopyPromptText } from "@uwu/core/prompts";
 import { TIER_STYLES } from "./SeverityBadge";
 import { InfoTooltip } from "./InfoTooltip";
 import { FacilDocumentFunnel } from "./DocumentProgressFunnel";
@@ -332,6 +333,8 @@ export function FacilitatorAnalysisWorkbench({
   const [saveState, setSaveState] = useState<"idle" | "saving" | "done" | "error">("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [excludeAplikasi, setExcludeAplikasi] = useState(false);
+  const [copyState, setCopyState] = useState<"idle" | "copying" | "done" | "error">("idle");
+  const [copyError, setCopyError] = useState<string | null>(null);
 
   async function generate() {
     // Field ini bisa sudah berisi hasil sebelumnya (diedit manual, generate
@@ -358,6 +361,27 @@ export function FacilitatorAnalysisWorkbench({
       setGenError(err instanceof Error ? err.message : "Terjadi kesalahan tak terduga.");
     } finally {
       setGenerating(false);
+    }
+  }
+
+  /** Bikin teks prompt versi PANJANG (beda dari "Generate dengan AI" yang
+   * SENGAJA ringkas satu kalimat/poin - lihat catatan di buildFacilitatorCopyPromptText)
+   * lalu salin ke clipboard, dipakai admin buat paste manual ke Gemini Pro
+   * (atau chat LLM lain). Dihitung LANGSUNG di client dari `row` + `hari`
+   * yang sudah tersedia sebagai prop (sama seperti FacilKendalaPanel di file
+   * ini yang juga sudah hitung compliance client-side) - tidak perlu round-trip
+   * ke server. */
+  async function copyPrompt() {
+    setCopyState("copying");
+    setCopyError(null);
+    try {
+      const promptText = buildFacilitatorCopyPromptText(row, hari);
+      await navigator.clipboard.writeText(promptText);
+      setCopyState("done");
+      setTimeout(() => setCopyState("idle"), 2000);
+    } catch (err) {
+      setCopyState("error");
+      setCopyError(err instanceof Error ? err.message : "Gagal menyalin prompt.");
     }
   }
 
@@ -416,13 +440,23 @@ export function FacilitatorAnalysisWorkbench({
           <label htmlFor="hasil-analisis" className="text-sm font-semibold text-ink-primary">
             Hasil Analisis AI
           </label>
-          <button
-            onClick={generate}
-            disabled={generating}
-            className="rounded-md bg-series-1 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-all hover:bg-series-1/90 disabled:opacity-50"
-          >
-            {generating ? "Menganalisis..." : hasil ? "Generate Ulang" : "Generate dengan AI"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={copyPrompt}
+              disabled={copyState === "copying"}
+              title="Salin prompt-nya (lengkap dengan contoh format & data fasilitator ini) untuk di-paste manual ke Gemini Pro atau chat LLM lain"
+              className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-ink-secondary shadow-sm transition-all hover:border-series-1 hover:text-ink-primary disabled:opacity-50"
+            >
+              {copyState === "copying" ? "Menyiapkan..." : copyState === "done" ? "✓ Tersalin" : "Copy Prompt"}
+            </button>
+            <button
+              onClick={generate}
+              disabled={generating}
+              className="rounded-md bg-series-1 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-all hover:bg-series-1/90 disabled:opacity-50"
+            >
+              {generating ? "Menganalisis..." : hasil ? "Generate Ulang" : "Generate dengan AI"}
+            </button>
+          </div>
         </div>
 
         <label className="flex items-center gap-2 text-xs text-ink-secondary" title='Buang seluruh checkpoint/persentase ber-sumber "Aplikasi Revit" (Login Aplikasi, Biodata, Dokumen Admin/Teknis, RAB) dari data yang dikirim ke AI - analisis jadi fokus ke checkpoint LK Fasil & catatan Kendala saja.'>
@@ -447,6 +481,7 @@ export function FacilitatorAnalysisWorkbench({
           className="resize-y rounded-md border border-border bg-background p-3 text-sm text-ink-primary placeholder:italic placeholder:text-ink-muted focus:border-series-1 focus:outline-none focus:ring-1 focus:ring-series-1"
         />
         {genError && <p className="text-xs text-status-critical">{genError}</p>}
+        {copyError && <p className="text-xs text-status-critical">{copyError}</p>}
 
         <div className="flex flex-wrap items-center gap-3 pt-1">
           <button

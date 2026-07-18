@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getFacilRows, getTodayHari, getFacilitatorLogData } from "@/lib/sheet";
+import { getFacilRowsForSelectedAdmin, getTodayHari, getFacilitatorLogData } from "@/lib/sheet";
 import { fetchAnalisisFromSheet } from "@/lib/writeSheet";
 import { getRowsForFacilitator, riskLevel, getEffectiveRisk, getCurrentRow, getFacilitators } from "@uwu/core/metrics";
 import { getCheckpointCompliance, countNonCompliant } from "@uwu/core/compliance";
@@ -47,7 +47,7 @@ export default async function FacilitatorDetailPage({
   // controller (fetch async), beda dari v1 yang baca env var statis secara
   // sinkron - independen satu sama lain jadi di-fetch paralel.
   const [rows, todayHari, editUrl, logData] = await Promise.all([
-    getFacilRows(),
+    getFacilRowsForSelectedAdmin(),
     getTodayHari(),
     getFacilitatorLkEditUrl(kode),
     getFacilitatorLogData(kode),

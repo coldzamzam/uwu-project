@@ -6,6 +6,7 @@ import type { FacilRow } from "@uwu/core/types";
 import { isControllerConfigured } from "./controller";
 import { getRosterEntries, getMasterLogRows, buildFacilRowFromMasterLog } from "./masterSheet";
 import type { RosterEntry, ParsedMasterLogRow } from "./masterSheet";
+import { getSelectedAdmin } from "./selectedAdmin";
 
 const HEADER_ANCHOR = `${COLUMN_MAP[0].header},`; // "Atmin,"
 
@@ -73,6 +74,31 @@ export async function getFacilRows(): Promise<FacilRow[]> {
 
   facilRowsCache = { at: Date.now(), rows };
   return rows;
+}
+
+/**
+ * getFacilRows() DI-FILTER ke fasilitator yang Atmin-nya cocok dengan admin
+ * yang dipilih di /pilih-admin (cookie `selected_admin`, lihat
+ * lib/selectedAdmin.ts) - dikonfirmasi 2026-07-18: seluruh halaman
+ * listing/ringkasan (dashboard, laporan, anomali, perbandingan, analisis
+ * massal, progres dokumen, notifikasi) HARUS pakai ini, BUKAN getFacilRows()
+ * mentah, supaya admin cuma lihat fasilitator yang dia pegang.
+ *
+ * SENGAJA TIDAK meng-cache hasil filter-nya sendiri (beda dari getFacilRows()
+ * yang cache-nya module-level/dibagi semua request) - cookie admin beda-beda
+ * PER REQUEST/PER ADMIN yang login, jadi kalau di-cache di sini bisa bocor
+ * (admin A kebagian cache hasil filter admin B). getFacilRows() di baliknya
+ * tetap cache seperti biasa (aman - itu data MENTAH belum difilter, sama
+ * untuk semua admin).
+ *
+ * Fallback ke SEMUA rows (tidak difilter) kalau cookie belum ada - harusnya
+ * tidak pernah kejadian di halaman biasa (proxy.ts sudah memaksa mampir ke
+ * /pilih-admin dulu), dijaga null-safe saja.
+ */
+export async function getFacilRowsForSelectedAdmin(): Promise<FacilRow[]> {
+  const [rows, admin] = await Promise.all([getFacilRows(), getSelectedAdmin()]);
+  if (!admin) return rows;
+  return rows.filter((r) => r.atmin === admin);
 }
 
 // --- Histori multi-hari per fasilitator (halaman /fasilitator/[kode]) -----

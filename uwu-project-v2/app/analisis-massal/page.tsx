@@ -1,4 +1,4 @@
-import { getFacilRows, getTodayHari } from "@/lib/sheet";
+import { getFacilRowsForSelectedAdmin, getTodayHari } from "@/lib/sheet";
 import { getFacilitators, getAvailableDays } from "@uwu/core/metrics";
 import { BulkAnalysisRunner } from "@/components/BulkAnalysisRunner";
 import { DailySummaryBulkRunner } from "@/components/DailySummaryBulkRunner";
@@ -13,7 +13,7 @@ export default async function AnalisisMassalPage({
   const { tab: tabParam } = await searchParams;
   const tab: "fasilitator" | "harian" = tabParam === "harian" ? "harian" : "fasilitator";
 
-  const rows = await getFacilRows();
+  const rows = await getFacilRowsForSelectedAdmin();
   const facilitators = getFacilitators(rows).map((f) => ({ kodeFasil: f.kodeFasil, namaFasil: f.namaFasil }));
   const days = getAvailableDays(rows);
   const todayHari = await getTodayHari();

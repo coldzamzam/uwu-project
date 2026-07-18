@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { getFacilRows, getTodayHari } from "@/lib/sheet";
+import { getFacilRowsForSelectedAdmin, getTodayHari } from "@/lib/sheet";
 import { scanAllAnomalies } from "@uwu/core/anomalies";
 import { getFacilitators } from "@uwu/core/metrics";
 import { StatTile } from "@/components/StatTile";
 import { AnomalyList } from "@/components/AnomalyList";
 
 export default async function AnomaliPage() {
-  const rows = await getFacilRows();
+  const rows = await getFacilRowsForSelectedAdmin();
   const todayHari = await getTodayHari();
   const reports = scanAllAnomalies(rows, todayHari);
   const totalFacilitators = getFacilitators(rows).length;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getFacilRows } from "@/lib/sheet";
+import { getFacilRowsForSelectedAdmin } from "@/lib/sheet";
 import { getRowsForDay } from "@uwu/core/metrics";
 import { buildDailySummaryMessages } from "@uwu/core/prompts";
 import { callLLM } from "@uwu/core/llm";
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     }
     console.log(`[API] POST /api/analyze/summary - hari=${hari}`);
 
-    const rows = await getFacilRows();
+    const rows = await getFacilRowsForSelectedAdmin();
     const dayRows = getRowsForDay(rows, hari);
     if (dayRows.length === 0) {
       return NextResponse.json({ error: "Tidak ada data untuk hari ini." }, { status: 404 });

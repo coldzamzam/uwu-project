@@ -1,9 +1,9 @@
-import { getFacilRows, getTodayHari } from "@/lib/sheet";
+import { getFacilRowsForSelectedAdmin, getTodayHari } from "@/lib/sheet";
 import { groupRowsByFacilitator, getCurrentRow } from "@uwu/core/metrics";
 import { MetricComparisonChart } from "@/components/MetricComparisonChart";
 
 export default async function PerbandinganPage() {
-  const rows = await getFacilRows();
+  const rows = await getFacilRowsForSelectedAdmin();
   const todayHari = await getTodayHari();
 
   const byFasil = groupRowsByFacilitator(rows);

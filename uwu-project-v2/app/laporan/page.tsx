@@ -1,4 +1,4 @@
-import { getFacilRows, getTodayHari } from "@/lib/sheet";
+import { getFacilRowsForSelectedAdmin, getTodayHari } from "@/lib/sheet";
 import { getFacilitators } from "@uwu/core/metrics";
 import { buildSystemicReport, renderSystemicReportText } from "@uwu/core/systemicReport";
 import { StatTile } from "@/components/StatTile";
@@ -6,7 +6,7 @@ import { ReportActions } from "@/components/ReportActions";
 import { NotifyPanel } from "@/components/NotifyPanel";
 
 export default async function LaporanPage() {
-  const rows = await getFacilRows();
+  const rows = await getFacilRowsForSelectedAdmin();
   const todayHari = await getTodayHari();
   const totalFasilitator = getFacilitators(rows).length;
   const report = buildSystemicReport(rows, todayHari, totalFasilitator);

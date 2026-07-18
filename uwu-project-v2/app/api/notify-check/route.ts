@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getFacilRows, getTodayHari } from "@/lib/sheet";
+import { getFacilRowsForSelectedAdmin, getTodayHari } from "@/lib/sheet";
 import { scanAllAnomalies } from "@uwu/core/anomalies";
 import { getCheckpointCompliance } from "@uwu/core/compliance";
 import { getRowsForFacilitator, getFacilitators, getCurrentRow } from "@uwu/core/metrics";
@@ -15,7 +15,7 @@ import { sendNotification } from "@/lib/notify";
  */
 export async function GET() {
   try {
-    const rows = await getFacilRows();
+    const rows = await getFacilRowsForSelectedAdmin();
     const todayHari = await getTodayHari();
     const facilitators = getFacilitators(rows);
     const anomalyReports = scanAllAnomalies(rows, todayHari);

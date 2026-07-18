@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getFacilRows, getTodayHari } from "@/lib/sheet";
+import { getFacilRowsForSelectedAdmin, getTodayHari } from "@/lib/sheet";
 import { getRowsForFacilitator } from "@uwu/core/metrics";
 import { detectFacilitatorAnomalies, fieldsWithFutureDataAnomaly } from "@uwu/core/anomalies";
 import { buildFacilitatorAnalysisMessages } from "@uwu/core/prompts";
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
 
     // Fallback if client doesn't send history
     if (!history || !Array.isArray(history)) {
-      const rows = await getFacilRows();
+      const rows = await getFacilRowsForSelectedAdmin();
       const fullHistory = getRowsForFacilitator(rows, kodeFasil);
       if (fullHistory.length === 0) {
         return NextResponse.json({ error: "Tidak ada data untuk fasilitator ini." }, { status: 404 });
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     const messages = buildFacilitatorAnalysisMessages(history, { excludeAplikasi: !!excludeAplikasi, anomalyFields });
     console.log(`\n\n--- [AI DEBUG] INPUT TO LLM UNTUK ${kodeFasil} ---`);
     console.log(JSON.stringify(messages, null, 2));
-    
+
     const result = await callLLM(messages);
     
     console.log(`\n\n--- [AI DEBUG] OUTPUT DARI LLM UNTUK ${kodeFasil} ---`);

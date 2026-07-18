@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getFacilRows, getTodayHari, isUsingSampleData } from "@/lib/sheet";
+import { getFacilRowsForSelectedAdmin, getTodayHari, isUsingSampleData } from "@/lib/sheet";
 import { getAvailableDays, getFacilitators, getRowsForDay, summarizeDay } from "@uwu/core/metrics";
 import { getCheckpointCompliance, countNonCompliant } from "@uwu/core/compliance";
 import { scanAllAnomalies } from "@uwu/core/anomalies";
@@ -20,7 +20,7 @@ export default async function DashboardPage({
   const { hari: hariParam, mode: modeParam } = await searchParams;
   const mode: "alltime" | "harian" = modeParam === "harian" ? "harian" : "alltime";
 
-  const rows = await getFacilRows();
+  const rows = await getFacilRowsForSelectedAdmin();
   const days = getAvailableDays(rows);
   const latestDay = days[days.length - 1] ?? 1;
   const todayHari = await getTodayHari();

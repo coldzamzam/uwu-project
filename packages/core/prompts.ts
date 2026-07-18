@@ -480,3 +480,215 @@ Tolong tulis dalam format tiga bagian di bawah, TANPA label/judul di depan tiap 
     { role: "user", content: userPrompt },
   ];
 }
+
+// --- Prompt untuk tombol "Copy Prompt" (paste manual ke Gemini Pro dkk.) --
+
+/** Total "semesta" tetap yang dipakai sebagai pembagi absolut - SELALU dipakai
+ * apa adanya untuk SETIAP metrik terkait (unggah/verifikasi/sesuai), TIDAK
+ * dirantai dari hasil metrik sebelumnya (mis. jumlah terverifikasi BUKAN
+ * dihitung dari jumlah terunggah, keduanya independen dari total tetap ini) -
+ * dikonfirmasi eksplisit oleh program owner 2026-07-18. */
+const TOTAL_SEKOLAH = 20;
+const TOTAL_DOK_TEKNIS = 120;
+const TOTAL_DOK_ADMIN = 220;
+
+function numOrZero(v: FacilRow[keyof FacilRow]): number {
+  return typeof v === "number" ? v : 0;
+}
+
+function absFromPct(v: FacilRow[keyof FacilRow], total: number): number {
+  return Math.round((numOrZero(v) / 100) * total);
+}
+
+function kendalaTextOrEmpty(v: FacilRow[keyof FacilRow]): string {
+  if (typeof v !== "string") return "";
+  const trimmed = v.trim();
+  return trimmed === "" || trimmed === "Belum Diisi" ? "" : trimmed;
+}
+
+const KENDALA_FIELDS_FOR_STALL_CHECK: (keyof FacilRow)[] = [
+  "kendalaKomunikasi",
+  "kendalaPanlakFormatTemplate",
+  "kendalaMendapatkanPerencana",
+  "kendalaVerifikasiBiodata",
+  "kendalaUpdateDapodik",
+  "kendalaPenyusunanDokAdmin",
+  "kendalaVerifikasiDokAdmin",
+  "kendalaPenyusunanDokTeknis",
+  "kendalaVerifikasiDokTeknis",
+  "kendalaPenyepakatanRAB",
+];
+
+/** "sampai Hari ke-N" di kolom Kendala manapun - dipakai admin sebagai catatan
+ * manual kalau fasilitator berhenti mengisi LK sebelum hari ini (mis. "Baru
+ * mengisi sampai Hari ke-11 (harusnya sudah Hari ke-13)"). */
+const STALL_NOTE_PATTERN = /sampai\s+hari\s+ke-?\s*(\d+)/i;
+
+/**
+ * "Hari terakhir fasilitator ini BENERAN mengisi LK Fasil" - BUKAN row.hari!
+ * row.hari di tab "masterLog" itu artinya "hari yang direpresentasikan
+ * snapshot ini" (SAMA untuk SEMUA fasilitator dalam satu snapshot, sekarang
+ * kebetulan selalu 13 karena baru ada satu snapshot) - BUKAN "hari terakhir
+ * fasilitator ini update", beda dari arsitektur lama (tab "Log" per
+ * fasilitator) yang row.hari-nya memang berarti begitu. DIKONFIRMASI
+ * 2026-07-18: satu-satunya sinyal "fasilitator ini macet sejak hari X" yang
+ * tersedia sekarang adalah catatan manual admin di kolom Kendala (pola
+ * "sampai Hari ke-N") - kalau tidak ketemu pola itu di kolom manapun,
+ * fallback ke `hari` (hari ini/yang lagi dilihat), ASUMSI fasilitator masih
+ * update normal. Heuristik berbasis teks bebas ini TIDAK dijamin selalu
+ * akurat - kalau ternyata ada sumber data terstruktur yang lebih baik untuk
+ * ini, ganti fungsi ini yang duluan. */
+function findLastFilledDay(row: FacilRow, fallbackHari: number): number {
+  for (const key of KENDALA_FIELDS_FOR_STALL_CHECK) {
+    const text = kendalaTextOrEmpty(row[key]);
+    const match = text.match(STALL_NOTE_PATTERN);
+    if (match) return parseInt(match[1], 10);
+  }
+  return fallbackHari;
+}
+
+const COPY_PROMPT_REFERENCE_EXAMPLE = `Fasil ini hanya mengisi LK Fasil sampai hari ke-4.
+
+Nilai capaian fasil atas Muhammad Haditya Yervan sangat rendah di angka 26.41 (masuk kriteria "Kritis") karena banyak checkpoint yang capaiannya masih rendah.
+
+Checkpoint wajib untuk hari ke-12 yaitu seluruh sekolah telah sepakat RAB (Final Checkpoint). Namun, sampai saat ini tidak ada sekolah yang sudah sepakat RAB. Beberapa hal yang berpengaruh terhadap capaian tersebut adalah belum tercapainya checkpoint perencana dan rendahnya angka unggah dan verifikasi dokumen teknis.
+
+Sekolah login aplikasi: Masih ada 5 sekolah yang belum login ke aplikasi (78.95% sekolah yang sudah login aplikasi). Artinya ada 5 sekolah yang pasti belum mengunggah dokumen admin dan teknisnya.
+
+Perencana: Masih ada 14 sekolah yang belum memiliki perencana sehingga sekolah belum dapat menyelesaikan penyusunan dokumen admin dan memulai menyusun dokumen teknis. Kendala terkait perencana tidak teridentifikasi karena fasil tidak mengisi informasi terkait perencana di LK Fasil.
+
+Unggah dokumen teknis: Baru sekitar 16 dari 120 dokumen teknis yang terunggah (14.04% rata-rata dokumen teknis terunggah). Artinya masih sekitar 104 dokumen yang harus ditagih untuk segera diunggah. Angka minimal persen terunggah menunjukan masih adanya sekolah yang belum mengunggah satupun dokumen (0% minimal dokumen teknis terunggah). Kendala terkait unggah dokumen teknis tidak teridentifikasi karena fasil tidak mengisi informasi terkait hal di LK Fasil.
+
+Verifikasi dokumen teknis: Dari sekitar 16 dokumen teknis yang terunggah, belum ada dokumen teknis yang terverifikasi oleh fasil (0% rata-rata dok. teknis terverifikasi). Kendala terkait verifikasi dokumen teknis tidak teridentifikasi karena fasil tidak mengisi informasi terkait hal ini di LK Fasil.
+
+Verifikasi dokumen teknis "Sesuai": Belum ada dokumen teknis yang terverifikasi.
+
+Unggah dokumen admin: Baru sekitar 150 dari 220 dokumen admin yang terunggah (68.42% rata-rata dokumen admin terunggah). Artinya masih sekitar 70 dokumen yang harus ditagih untuk segera diunggah. Angka minimal persen terunggah menunjukan adanya sekolah yang belum mengunggah sama sekali dari 11 dokumen (0% minimal dokumen admin terunggah). Kendala terkait unggah dokumen admin adalah dokumen belum tersedia lengkap di sekolah (Sumber: LK Fasil).
+
+Verifikasi dokumen admin: Dari sekitar 150 dokumen admin yang terunggah, yang sudah terverifikasi oleh fasil sekitar 76 dokumen (51.20% rata-rata dokumen admin terverifikasi). Artinya masih sekitar 74 dokumen admin yang harus segera diverifikasi.
+
+Verifikasi dokumen admin "Sesuai": Dari sekitar 76 dokumen admin yang terverifikasi oleh fasil, baru sekitar 35 dokumen admin yang terverifikasi dengan status "Sesuai" (46.89% rata dokumen admin terverifikasi "Sesuai").
+
+Catatan lain:
+Biodata: Masih 8 sekolah yang belum terverifikasi "Sesuai" biodatanya (63.16% sekolah biodata sudah terverifikasi sesuai).
+Dapodik: Seluruh sekolah yang data dapodiknya belum sesuai rincian menu yang dibutuhkan tidak bisa mengupdate Dapodik dikarenakan Dapodik terkunci (Sumber: LK Fasil).`;
+
+/**
+ * Prompt untuk tombol "Copy Prompt" (FacilitatorAnalysisWorkbench.tsx) - BEDA
+ * TOTAL dari buildFacilitatorAnalysisMessages() di atas (yang dipakai tombol
+ * "Generate dengan AI"/panggilan API internal, format SANGAT ringkas satu
+ * kalimat per poin). Ini untuk admin yang mau paste manual ke Gemini Pro (atau
+ * chat LLM lain) dan minta narasi PANJANG per kategori checkpoint, gaya
+ * persis seperti COPY_PROMPT_REFERENCE_EXAMPLE - dikonfirmasi langsung oleh
+ * program owner 2026-07-18, JANGAN disamakan dengan gaya "Generate dengan AI"
+ * di atas (dilarang bertele-tele dkk itu TIDAK berlaku di sini).
+ *
+ * Aturan kunci (BEDA dari prompt "Generate dengan AI" di atas):
+ * - SETIAP kategori (login aplikasi, perencana, dok teknis x3, dok admin x3)
+ *   SELALU disebut walau capaiannya sudah 100%/sempurna - TIDAK di-skip
+ *   (beda dari aturan "PENGHILANGAN TOTAL JIKA 100%" di buildFacilitatorAnalysisMessages).
+ * - Pembagi absolut SELALU tetap: 220 untuk seluruh metrik Dokumen Admin
+ *   (unggah/verifikasi/sesuai), 120 untuk seluruh metrik Dokumen Teknis,
+ *   20 untuk metrik per-sekolah (login aplikasi, perencana, biodata) -
+ *   TIDAK dirantai dari hasil metrik sebelumnya.
+ */
+export function buildFacilitatorCopyPromptText(row: FacilRow, hari: number): string {
+  const compliance = getCheckpointCompliance(row, hari);
+  const dueCheckpoints = activeCheckpoints(hari); // urut ascending activeFromDay
+  const currentGroup = dueCheckpoints[dueCheckpoints.length - 1] ?? null; // checkpoint PALING BARU jatuh tempo
+  const currentCompliance = currentGroup ? compliance.find((c) => c.group.no === currentGroup.no) ?? null : null;
+
+  const data = {
+    fasilitator: row.namaFasil,
+    kodeFasil: row.kodeFasil,
+    hariTerakhirDiisiFasil: findLastFilledDay(row, hari),
+    hariIni: hari,
+    skorAkhir: typeof row.skorAkhir === "number" ? row.skorAkhir : null,
+    checkpointWajibHariIni: currentGroup
+      ? {
+          nama: currentGroup.name,
+          tujuan: currentGroup.tujuan,
+          aktifSejakHari: currentGroup.activeFromDay,
+          statusSaatIni: currentCompliance?.status ?? "unknown",
+          indikator: currentGroup.indicators.map((i) => ({ label: i.definisi, nilaiSheet: row[i.kolom] })),
+        }
+      : "(belum ada checkpoint yang berlaku sampai hari ini)",
+    sekolahLoginAplikasi: {
+      totalSekolah: TOTAL_SEKOLAH,
+      belumLoginPersen: numOrZero(row.pctSekolahBelumLoginAplikasi),
+      belumLoginJumlah: absFromPct(row.pctSekolahBelumLoginAplikasi, TOTAL_SEKOLAH),
+    },
+    perencana: {
+      totalSekolah: TOTAL_SEKOLAH,
+      belumPunyaPersen: numOrZero(row.pctTidakPunyaPerencanaLK),
+      belumPunyaJumlah: absFromPct(row.pctTidakPunyaPerencanaLK, TOTAL_SEKOLAH),
+      kendala: kendalaTextOrEmpty(row.kendalaMendapatkanPerencana),
+    },
+    dokumenTeknis: {
+      totalDokumen: TOTAL_DOK_TEKNIS,
+      unggahPersen: numOrZero(row.rataDokTeknisTerunggah),
+      unggahJumlah: absFromPct(row.rataDokTeknisTerunggah, TOTAL_DOK_TEKNIS),
+      unggahMinimalPersen: numOrZero(row.minDokTeknisTerunggah),
+      kendalaUnggah: kendalaTextOrEmpty(row.kendalaPenyusunanDokTeknis),
+      verifikasiPersen: numOrZero(row.rataDokTeknisTerverifikasi),
+      verifikasiJumlah: absFromPct(row.rataDokTeknisTerverifikasi, TOTAL_DOK_TEKNIS),
+      kendalaVerifikasi: kendalaTextOrEmpty(row.kendalaVerifikasiDokTeknis),
+      sesuaiPersen: numOrZero(row.rataDokTeknisSesuai),
+      sesuaiJumlah: absFromPct(row.rataDokTeknisSesuai, TOTAL_DOK_TEKNIS),
+    },
+    dokumenAdmin: {
+      totalDokumen: TOTAL_DOK_ADMIN,
+      unggahPersen: numOrZero(row.rataDokAdminTerunggah),
+      unggahJumlah: absFromPct(row.rataDokAdminTerunggah, TOTAL_DOK_ADMIN),
+      unggahMinimalPersen: numOrZero(row.minDokAdminTerunggah),
+      kendalaUnggah: kendalaTextOrEmpty(row.kendalaPenyusunanDokAdmin),
+      verifikasiPersen: numOrZero(row.rataDokAdminTerverifikasi),
+      verifikasiJumlah: absFromPct(row.rataDokAdminTerverifikasi, TOTAL_DOK_ADMIN),
+      kendalaVerifikasi: kendalaTextOrEmpty(row.kendalaVerifikasiDokAdmin),
+      sesuaiPersen: numOrZero(row.rataDokAdminSesuai),
+      sesuaiJumlah: absFromPct(row.rataDokAdminSesuai, TOTAL_DOK_ADMIN),
+    },
+    catatanLain: {
+      biodata: {
+        totalSekolah: TOTAL_SEKOLAH,
+        belumTerverifikasiPersen: numOrZero(row.pctBiodataBelumTerverifikasi),
+        belumTerverifikasiJumlah: absFromPct(row.pctBiodataBelumTerverifikasi, TOTAL_SEKOLAH),
+        kendala: kendalaTextOrEmpty(row.kendalaVerifikasiBiodata),
+      },
+      dapodik: {
+        sudahUploadBuktiPersen: numOrZero(row.pctSudahUploadBuktiUpdateDapodik),
+        kendala: kendalaTextOrEmpty(row.kendalaUpdateDapodik),
+      },
+      komunikasi: { belumDihubungiPersen: numOrZero(row.pctSekolahBelumDihubungi), kendala: kendalaTextOrEmpty(row.kendalaKomunikasi) },
+      panlakFormat: {
+        belumPanlakPersen: numOrZero(row.pctTidakPunyaPanlak),
+        belumFormatPersen: numOrZero(row.pctTidakPunyaFormatTemplate),
+        kendala: kendalaTextOrEmpty(row.kendalaPanlakFormatTemplate),
+      },
+      rab: { belumSepakatPersen: numOrZero(row.pctBelumSepakatRAB), kendala: kendalaTextOrEmpty(row.kendalaPenyepakatanRAB) },
+    },
+  };
+
+  return `Anda adalah asisten analis untuk program revitalisasi sekolah. Tolong tulis analisis naratif untuk SATU fasilitator lapangan, PERSIS meniru gaya, struktur, dan urutan paragraf dari "CONTOH REFERENSI" di bawah - tapi SELURUH angka harus berasal dari "DATA FASILITATOR" (JSON) di bawahnya, JANGAN sekali-kali memakai angka dari contoh referensi.
+
+=== CONTOH REFERENSI (tiru gaya & strukturnya, BUKAN angkanya) ===
+${COPY_PROMPT_REFERENCE_EXAMPLE}
+=== AKHIR CONTOH REFERENSI ===
+
+ATURAN WAJIB:
+1. Ikuti urutan paragraf PERSIS seperti contoh: (a) baris pembuka "Fasil ini hanya mengisi LK Fasil sampai hari ke-X.", (b) baris "Nilai capaian fasil atas [Nama] [kata sifat sesuai skornya] di angka [Skor Akhir] (masuk kriteria "[label]")..." - pilih sendiri kata sifat & label kriteria (mis. Kritis/Rendah/Cukup/Baik/Sangat Baik) yang paling sesuai dengan besarnya skor, (c) paragraf "Checkpoint wajib untuk hari ke-X yaitu ...", jelaskan checkpoint yang sedang berlaku (lihat "checkpointWajibHariIni" di data) dan status pencapaiannya, tutup dengan menyebutkan SPESIFIK checkpoint/kategori mana yang jadi penyebab utama (bukan kalimat generik "beberapa hal berpotensi berpengaruh").
+2. SETELAH itu, WAJIB bahas KE-8 kategori berikut, satu paragraf per kategori, SATU PER SATU dengan urutan dan label PERSIS ini (pakai tanda kutip dua untuk kata "Sesuai"): "Sekolah login aplikasi:", "Perencana:", "Unggah dokumen teknis:", "Verifikasi dokumen teknis:", "Verifikasi dokumen teknis "Sesuai":", "Unggah dokumen admin:", "Verifikasi dokumen admin:", "Verifikasi dokumen admin "Sesuai":".
+3. PENTING - BEDA DARI KEBIASAAN UMUM: WAJIB SEBUTKAN SEMUA 8 kategori itu WALAUPUN capaiannya sudah 100%/sempurna - JANGAN pernah dilewati/di-skip. Kalau sudah 100%, tulis dengan nada positif (contoh: "seluruhnya sudah terverifikasi oleh fasil"), JANGAN dihilangkan dari hasil.
+4. Kalau ada kolom "kendala..." yang isinya bukan string kosong di data, sertakan isinya apa adanya sebagai kalimat kendala di paragraf terkait. Kalau kosong, tulis kalimat seperti pada contoh ("Kendala terkait ... tidak teridentifikasi karena fasil tidak mengisi informasi terkait hal ini di LK Fasil").
+5. Kalau ada ketimpangan besar antara satu tahap dan tahap berikutnya dalam kategori yang sama (mis. banyak yang terunggah tapi sedikit yang terverifikasi, atau banyak yang terverifikasi tapi sedikit yang "Sesuai"), sertakan juga angka selisihnya secara eksplisit di kalimatnya.
+6. WAJIB tutup dengan bagian "Catatan lain:" (judul PERSIS begitu, tanpa paragraf lain di atasnya dulu) berisi baris-baris singkat (BUKAN paragraf panjang seperti kategori di atas) untuk checkpoint yang belum dibahas di kategori manapun di atas: Biodata (field catatanLain.biodata), Dapodik (field catatanLain.dapodik), dan HANYA kalau field catatanLain.komunikasi/panlakFormat/rab menunjukkan ada masalah nyata (persennya jauh dari sempurna ATAU field kendala-nya berisi laporan masalah) - kalau field itu kosong/sempurna, JANGAN disebut sama sekali di "Catatan lain" (beda dari 8 kategori wajib di poin 2-3 yang harus selalu disebut).
+7. Data dari field "kendala..." yang kosong ("") berarti memang belum ada catatan dari fasilitator - JANGAN mengarang kendala yang tidak ada di data.
+8. Tulis paragraf mengalir natural (bukan bullet point/list), Bahasa Indonesia, TANPA judul tebal markdown di depan tiap paragraf (label kategori seperti "Perencana:" cukup teks biasa, bukan **Perencana:**).
+
+=== DATA FASILITATOR (SATU-SATUNYA sumber angka yang boleh dipakai) ===
+\`\`\`json
+${JSON.stringify(data, null, 2)}
+\`\`\`
+
+${buildKnowledgeSummary(hari)}`;
+}
