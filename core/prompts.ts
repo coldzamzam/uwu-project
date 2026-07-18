@@ -353,6 +353,7 @@ export function buildFacilitatorAnalysisMessages(
       "Dokumen Admin Sesuai": `${dokAdminSesuai} dari 220`,
       "Sekolah Belum Login Aplikasi": Math.round(((latest.pctSekolahBelumLoginAplikasi as number) ?? 0) / 100 * 20),
       "Sekolah Belum Punya Perencana": Math.round(((latest.pctTidakPunyaPerencanaLK as number) ?? 0) / 100 * 20),
+      "Sekolah Mengundurkan Diri": parseInt(String(latest.jumlahSekolahMengundurkanDiri || "0"), 10),
     },
     catatanKualitatif: history.flatMap((row) =>
       PROMPT_QUALITATIVE_FIELDS.filter(
@@ -384,7 +385,7 @@ Struktur Paragraf yang Wajib Diikuti:
 2. **Checkpoint**: Sebutkan apakah hari ini ada checkpoint baru atau masih melanjutkan checkpoint sebelumnya, lalu sebutkan apakah sudah tercapai atau belum.
 3. **Analisis Kendala Utama (HANYA YANG BERMASALAH)**:
    - Evaluasi setiap kategori berikut HANYA JIKA persentasenya belum sempurna. Jika sempurna (100%), LEWATI kategori tersebut sepenuhnya.
-   - **Sekolah Mengundurkan Diri**: Jika ada catatan "Jumlah Sekolah Mengundurkan Diri" di Catatan Kualitatif, WAJIB sebutkan jumlahnya dan kaitkan bahwa ini berdampak pada angka capaian yang menurun.
+   - **Sekolah Mengundurkan Diri**: Jika di angkaAbsolut "Sekolah Mengundurkan Diri" > 0, WAJIB sebutkan jumlahnya dan kaitkan bahwa ini berdampak pada angka capaian yang menurun. Jika 0, JANGAN sebutkan sama sekali.
    - **Progress LK**: Jika ada peringatan di "progressPengisianLK" JSON bahwa fasilitator telat update/baru mengisi sampai hari ke-X, WAJIB sebutkan di awal analisis bahwa data mereka tertinggal (misal: "Fasilitator baru mengisi LK sampai Hari ke-6 padahal seharusnya sudah Hari ke-13, sehingga data di bawah ini mungkin kurang akurat/usang.")
    - **Aplikasi**: Bahas hanya jika ada sekolah yang belum login.
    - **Perencana**: Bahas hanya jika ada sekolah yang belum punya perencana, sebutkan dampaknya.
@@ -667,6 +668,7 @@ export function buildFacilitatorCopyPromptText(row: FacilRow, hari: number): str
         kendala: kendalaTextOrEmpty(row.kendalaUpdateDapodik),
       },
       komunikasi: { belumDihubungiPersen: numOrZero(row.pctSekolahBelumDihubungi), kendala: kendalaTextOrEmpty(row.kendalaKomunikasi) },
+      mengundurkanDiri: parseInt(String(row.jumlahSekolahMengundurkanDiri || "0"), 10),
       panlakFormat: {
         belumPanlakPersen: numOrZero(row.pctTidakPunyaPanlak),
         belumFormatPersen: numOrZero(row.pctTidakPunyaFormatTemplate),
@@ -688,7 +690,7 @@ ATURAN WAJIB:
 3. PENTING - BEDA DARI KEBIASAAN UMUM: WAJIB SEBUTKAN SEMUA 8 kategori itu WALAUPUN capaiannya sudah 100%/sempurna - JANGAN pernah dilewati/di-skip. Kalau sudah 100%, tulis dengan nada positif (contoh: "seluruhnya sudah terverifikasi oleh fasil"), JANGAN dihilangkan dari hasil.
 4. Kalau ada kolom "kendala..." yang isinya bukan string kosong di data, sertakan isinya apa adanya sebagai kalimat kendala di paragraf terkait. Kalau kosong, tulis kalimat seperti pada contoh ("Kendala terkait ... tidak teridentifikasi karena fasil tidak mengisi informasi terkait hal ini di LK Fasil").
 5. Kalau ada ketimpangan besar antara satu tahap dan tahap berikutnya dalam kategori yang sama (mis. banyak yang terunggah tapi sedikit yang terverifikasi, atau banyak yang terverifikasi tapi sedikit yang "Sesuai"), sertakan juga angka selisihnya secara eksplisit di kalimatnya.
-6. WAJIB tutup dengan bagian "Catatan lain:" (judul PERSIS begitu, tanpa paragraf lain di atasnya dulu) berisi baris-baris singkat (BUKAN paragraf panjang seperti kategori di atas) untuk checkpoint yang belum dibahas di kategori manapun di atas: Biodata (field catatanLain.biodata), Dapodik (field catatanLain.dapodik), dan HANYA kalau field catatanLain.komunikasi/panlakFormat/rab menunjukkan ada masalah nyata (persennya jauh dari sempurna ATAU field kendala-nya berisi laporan masalah) - kalau field itu kosong/sempurna, JANGAN disebut sama sekali di "Catatan lain" (beda dari 8 kategori wajib di poin 2-3 yang harus selalu disebut).
+6. WAJIB tutup dengan bagian "Catatan lain:" (judul PERSIS begitu, tanpa paragraf lain di atasnya dulu) berisi baris-baris singkat (BUKAN paragraf panjang seperti kategori di atas) untuk checkpoint yang belum dibahas di kategori manapun di atas: Biodata (field catatanLain.biodata), Dapodik (field catatanLain.dapodik), Sekolah Mengundurkan Diri (HANYA JIKA field catatanLain.mengundurkanDiri > 0), dan HANYA kalau field catatanLain.komunikasi/panlakFormat/rab menunjukkan ada masalah nyata (persennya jauh dari sempurna ATAU field kendala-nya berisi laporan masalah) - kalau field itu kosong/sempurna, JANGAN disebut sama sekali di "Catatan lain" (beda dari 8 kategori wajib di poin 2-3 yang harus selalu disebut).
 7. Data dari field "kendala..." yang kosong ("") berarti memang belum ada catatan dari fasilitator - JANGAN mengarang kendala yang tidak ada di data.
 8. Tulis paragraf mengalir natural (bukan bullet point/list), Bahasa Indonesia, TANPA judul tebal markdown di depan tiap paragraf (label kategori seperti "Perencana:" cukup teks biasa, bukan **Perencana:**).
 

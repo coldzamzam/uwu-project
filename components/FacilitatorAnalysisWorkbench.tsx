@@ -14,7 +14,7 @@ import { TIER_STYLES } from "./SeverityBadge";
 import { InfoTooltip } from "./InfoTooltip";
 import { FacilDocumentFunnel } from "./DocumentProgressFunnel";
 
-const KENDALA_FIELDS = QUALITATIVE_FIELDS.filter((f) => f.key !== "analisis" && f.key !== "catatanAdmin");
+const KENDALA_FIELDS = QUALITATIVE_FIELDS.filter((f) => f.key !== "analisis" && f.key !== "catatanAdmin" && f.key !== "jumlahSekolahMengundurkanDiri");
 
 function fieldValue(row: FacilRow, key: keyof FacilRow): string {
   const v = row[key];
@@ -275,10 +275,24 @@ export function FacilKendalaPanel({
     );
   };
 
+  const mengundurkanDiriRaw = row.jumlahSekolahMengundurkanDiri;
+  const mengundurkanDiriCount = typeof mengundurkanDiriRaw === "string" ? parseInt(mengundurkanDiriRaw, 10) : typeof mengundurkanDiriRaw === "number" ? mengundurkanDiriRaw : 0;
+
   return (
     <div className="flex h-full flex-col rounded-xl border border-border bg-surface shadow-sm">
       <div className="flex shrink-0 flex-col gap-2 border-b border-gridline px-4 py-2.5">
-        <h3 className="text-sm font-semibold text-ink-primary">Catatan Kendala Fasil (Hari ke-{hari})</h3>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-ink-primary">Catatan Kendala Fasil (Hari ke-{hari})</h3>
+          {mengundurkanDiriCount > 0 ? (
+            <span className="rounded-md bg-status-critical/15 px-2.5 py-1 text-xs font-bold text-status-critical border border-status-critical/30 shadow-sm animate-pulse">
+              ⚠ {mengundurkanDiriCount} Sekolah Mengundurkan Diri!
+            </span>
+          ) : (
+            <span className="rounded-md bg-background px-2.5 py-1 text-[11px] font-medium text-ink-muted border border-border">
+              0 Sekolah Mengundurkan Diri
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-2">
