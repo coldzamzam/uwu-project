@@ -370,50 +370,39 @@ ${JSON.stringify(promptData, null, 2)}
 ## Basis Pengetahuan Checkpoint yang Relevan Hari Ini
 ${buildKnowledgeSummary(maxDay)}
 
-Tolong buatkan analisis naratif yang persis meniru gaya penulisan contoh berikut. JANGAN gunakan bullet points, gunakan paragraf deskriptif yang SANGAT SINGKAT, PADAT, dan TO THE POINT (karena ini untuk koordinator yang membaca cepat). Fokuskan analisis PADA DATA TABEL PERSENTASE TERKINI di atas.
+Tolong buatkan analisis naratif yang persis mengikuti ATURAN WAJIB dan FORMAT OUTPUT YANG DIHARAPKAN di bawah. Fokuskan analisis PADA DATA TABEL PERSENTASE TERKINI.
 
-ATURAN KETAT (WAJIB DIIKUTI):
-1. **DILARANG BERTELE-TELE**: Jangan gunakan frasa basa-basi/analisis kosong seperti "Hal ini menunjukkan bahwa...", "Ini menjadi akar masalah yang signifikan...", "Sementara itu...", atau "Ini menunjukkan komitmen...". Langsung tembak ke angka dan fakta.
-2. **DILARANG MENGULANG FAKTA KEBALIKAN**: Jangan menambahkan kalimat sisa yang tidak perlu (misal: "Sudah sesuai 5%. Sementara yang belum 95%." -> cukup sebut yang 5%).
-3. **GUNAKAN ANGKA ABSOLUT DARI JSON**: Koordinator tidak ingin membaca terlalu banyak persentase. Gunakan teks langsung dari \`angkaAbsolut\` di JSON "Data Fasilitator". Kamu tidak perlu menghitung manual lagi.
-4. **AWAS HALUSINASI ANGKA**: DILARANG KERAS menyalin angka-angka dari teks "Contoh Referensi Analisis Manusia" ke dalam jawabanmu.
-5. **NARASI SEBAB-AKIBAT (ROOT CAUSE)**: Hubungkan kalimat dengan logika sebab-akibat lugas agar akar masalahnya terlihat jelas, terutama jika ada Catatan Kualitatif.
-6. **PENGHILANGAN TOTAL JIKA 100% ATAU SEMPURNA (SANGAT PENTING)**: Jika suatu metrik sudah 100% (sempurna) atau 0 masalah, KAMU DILARANG MENYEBUTKANNYA SAMA SEKALI. Jangan membuat kalimat basa-basi seperti "Semua sekolah sudah login". Jika semua dokumen admin sudah lengkap 220 dari 220, JANGAN buat paragraf tentang dokumen admin. Hapus dari hasil akhirmu. Fokus HANYA pada metrik yang masih bermasalah (di bawah target).
+ATURAN WAJIB:
+1. LANGSUNG KE INTI: JANGAN pernah memberikan kalimat pengantar atau menjelaskan cara Anda menghitung jumlah sekolah. Output harus langsung dimulai dengan kalimat: "Nilai capaian fasil atas [Nama Fasil] berada di angka [Skor Akhir]."
+2. HITUNG TOTAL SEKOLAH (DI BALIK LAYAR): Hitung total sekolah binaan fasilitator berdasarkan rasio persentasenya. Gunakan angka absolut ini (jumlah unit sekolah) pada narasi "% Sekolah...", BUKAN sekadar menyalin persentase. Kamu tidak perlu menghitung manual, cukup gunakan angka dari \`angkaAbsolut\` di JSON "Data Fasilitator".
+3. GAYA BAHASA OBJEKTIF: JANGAN gunakan opini, asumsi penyebab kendala, atau komentar subjektif (DILARANG menggunakan kata "lamban", "bottleneck", atau menyalahkan fasil). Gunakan bahasa formal, faktual, dan murni membaca data.
+4. PENJABARAN ANGKA DOKUMEN: Untuk poin yang mengandung kata "unggah" (Dokumen Admin dan Dokumen Teknis), Anda harus mengonversi persentase "Rata-rata % Dokumen Terunggah" menjadi angka pasti.
+   - Syarat Admin: Gunakan angka pembanding 220 dokumen. (Contoh: jika rata-rata 100%, tulis "atau 220 dari 220 dokumen telah terunggah"). Gunakan angka dari \`angkaAbsolut\` JSON.
+   - Syarat Teknis: Gunakan angka pembanding 120 dokumen. (Contoh: jika rata-rata 50%, tulis "atau 60 dari 120 dokumen telah terunggah"). Gunakan angka dari \`angkaAbsolut\` JSON.
+5. KETERANGAN KENDALA: Untuk SETIAP poin/metrik yang persentasenya BELUM 100% (belum tuntas) DAN tidak ada "Catatan Kualitatif" terkait dari fasilitator yang menjelaskannya, Anda WAJIB menambahkan kalimat persis seperti ini di akhir paragraf poin tersebut: "Kendala terkait [Nama Poin/Topik] tidak teridentifikasi karena fasil tidak mengisi informasi terkait hal di LK Fasil." Jika sudah ada "Catatan Kualitatif" terkait, sebutkan kendala aslinya.
+6. PENGHILANGAN TOTAL JIKA 100% ATAU SEMPURNA (SANGAT PENTING): Jika suatu metrik sudah 100% (sempurna) atau 0 masalah, KAMU DILARANG MENYEBUTKANNYA SAMA SEKALI di bagian list (lewati saja poin itu).
 
-Struktur Paragraf yang Wajib Diikuti:
-1. **Pembuka**: Sebutkan nilai capaian fasil (Skor Akhir) dengan format: "Nilai capaian fasil atas [Nama Fasil] sangat rendah di angka [Skor Akhir]/100.00." (Sesuaikan kata sifat "sangat rendah/cukup/baik" berdasarkan skor).
-2. **Checkpoint**: Sebutkan apakah hari ini ada checkpoint baru atau masih melanjutkan checkpoint sebelumnya, lalu sebutkan apakah sudah tercapai atau belum.
-3. **Analisis Kendala Utama (HANYA YANG BERMASALAH)**:
-   - Evaluasi setiap kategori berikut HANYA JIKA persentasenya belum sempurna. Jika sempurna (100%), LEWATI kategori tersebut sepenuhnya.
-   - **Sekolah Mengundurkan Diri**: Jika di angkaAbsolut "Sekolah Mengundurkan Diri" > 0, WAJIB sebutkan jumlahnya dan kaitkan bahwa ini berdampak pada angka capaian yang menurun. Jika 0, JANGAN sebutkan sama sekali.
-   - **Progress LK**: Jika ada peringatan di "progressPengisianLK" JSON bahwa fasilitator telat update/baru mengisi sampai hari ke-X, WAJIB sebutkan di awal analisis bahwa data mereka tertinggal (misal: "Fasilitator baru mengisi LK sampai Hari ke-6 padahal seharusnya sudah Hari ke-13, sehingga data di bawah ini mungkin kurang akurat/usang.")
-   - **Aplikasi**: Bahas hanya jika ada sekolah yang belum login.
-   - **Perencana**: Bahas hanya jika ada sekolah yang belum punya perencana, sebutkan dampaknya.
-   - **Dokumen Teknis**: Bahas hanya jika belum 120 terunggah/terverifikasi/sesuai. Sebutkan absolut terunggah, lalu absolut terverifikasi (dari yg terunggah), lalu absolut sesuai (dari 120).
-   - **Dokumen Admin**: Bahas hanya jika belum 220 terunggah/terverifikasi/sesuai. Sebutkan absolut terunggah, lalu absolut terverifikasi (dari yg terunggah), lalu absolut sesuai (dari 220).
-   - **Lainnya (Dapodik/RAB)**: Bahas hanya jika ada hambatan.
+FORMAT OUTPUT YANG DIHARAPKAN:
+Nilai capaian fasil atas [Nama Fasil] berada di angka [Skor Akhir]. [Beri 1-2 kalimat rangkuman objektif terkait capaian mana yang sudah 100% dan mana yang masih rendah, termasuk jika ada Sekolah Mengundurkan Diri (ambil dari angkaAbsolut)].
 
-Contoh Referensi Analisis Manusia (Tiru KERINGKASANNYA dan POLA KALIMATNYA, tapi JANGAN TIRU ANGKA-ANGKANYA):
-[Contoh 1]
-"Nilai capaian fasil atas Muhammad Haditya Yervan sangat rendah di angka 26.41/100.00.
+Checkpoint wajib untuk hari ke-${maxDay} yaitu [Sebutkan checkpoint hari ini dan tujuannya]. Namun, sampai saat ini [sebutkan progresnya, misal: tidak ada sekolah yang sudah sepakat RAB (0%)]. Beberapa hal berikut berpotensi berpengaruh terhadap capaian tersebut:
 
-Checkpoint hari ini adalah seluruh sekolah telah sepakat RAB. Namun, belum ada sekolah yang sudah sepakat RAB.
+*Sekolah login aplikasi:* [Penjelasan objektif]
+*Perencana:* [Penjelasan objektif]
+*Unggah dokumen admin:* [Penjelasan objektif + Penjabaran angka /220 dokumen]
+*Verifikasi dokumen admin:* [Penjelasan objektif]
+*Verifikasi dokumen admin "Sesuai":* [Penjelasan objektif]
+*Unggah dokumen teknis:* [Penjelasan objektif + Penjabaran angka /120 dokumen]
+*Verifikasi dokumen teknis:* [Penjelasan objektif]
+*Verifikasi dokumen teknis "Sesuai":* [Penjelasan objektif]
 
-Sekolah login aplikasi: Masih ada 5 sekolah yang bahkan belum login ke aplikasi (78.95% sekolah yang sudah login aplikasi).
+*Catatan lain:*
+* [Jelaskan sisa metrik yang belum dibahas di atas HANYA JIKA bermasalah, seperti Biodata, Dapodik, Keterhubungan, Panlak, Template. Ingat, jika ada metrik di catatan lain ini yang belum 100%, cantumkan juga kalimat Keterangan Kendala wajibnya jika tidak ada catatan kualitatif].
 
-Perencana: Masih ada 14 sekolah yang belum memiliki perencana, sehingga terkendala pada checkpoint dokumen admin dan dokumen teknis.
-
-Dokumen teknis terunggah hanya 16 dari 120 dokumen teknis yang terunggah (14.04% rata-rata dokumen teknis terunggah). Ada sekolah yang belum mengunggah satupun dokumen (0%).
-Dokumen teknis terverifikasi masih belum ada dari 16 dokumen teknis terunggah (rata-rata 0%).
-Dokumen teknis terverifikasi sesuai masih belum ada.
-
-Dokumen admin terunggah hanya 150 dari 220 dokumen (rata-rata 68.42%). Ada sekolah yang belum mengunggah satupun dokumen (minimum 0%).
-Dokumen admin terverifikasi hanya 76 dari 150 dokumen admin terunggah (rata-rata 51.20%)."
-
-PENTING MUTLAK: Gunakan HANYA data dari JSON "Data Fasilitator" untuk menyusun angka-angkanya. Dilarang keras meniru angka dari contoh.`;
+PENTING MUTLAK: Gunakan HANYA data dari JSON "Data Fasilitator" untuk menyusun angka-angkanya.`;
 
   return [
-    { role: "system", content: "Anda adalah analis data. Jawab dengan analisis naratif sesuai contoh dan format yang diinstruksikan. Dilarang menggunakan bullet point atau format markdown lain, gunakan paragraf biasa." },
+    { role: "system", content: "Anda adalah analis data. Jawab dengan analisis naratif objektif sesuai format yang diinstruksikan. Gunakan gaya bahasa baku dan faktual tanpa opini." },
     { role: "user", content: userPrompt },
   ];
 }
