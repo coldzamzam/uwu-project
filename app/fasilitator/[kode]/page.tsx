@@ -4,6 +4,7 @@ import { getFacilRowsForSelectedAdmin, getTodayHari, getFacilitatorLogData } fro
 import { fetchAnalisisFromSheet } from "@/lib/writeSheet";
 import { auth } from "@/lib/auth";
 import { getRowsForFacilitator, riskLevel, getEffectiveRisk, getCurrentRow, getFacilitators } from "@uwu/core/metrics";
+import { configuredProviderNames } from "@uwu/core/llm";
 import { getCheckpointCompliance, countNonCompliant } from "@uwu/core/compliance";
 import { buildNoteRanges, formatHariRange, QUALITATIVE_FIELDS } from "@uwu/core/notes";
 import { detectFacilitatorAnomalies } from "@uwu/core/anomalies";
@@ -179,6 +180,7 @@ export default async function FacilitatorDetailPage({
             prevFacilitator={prevFacilitator}
             nextFacilitator={nextFacilitator}
             existingAnalisis={existingAnalisis}
+            configuredProviders={configuredProviderNames()}
           />
         </div>
 

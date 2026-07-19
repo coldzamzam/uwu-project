@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     console.log(`\n\n--- [AI DEBUG] INPUT TO LLM UNTUK ${kodeFasil} ---`);
     console.log(JSON.stringify(messages, null, 2));
 
-    const override = aiProvider && aiKey ? { provider: aiProvider, apiKey: aiKey } : undefined;
+    const override = aiProvider ? { provider: aiProvider, apiKey: aiKey || "" } : undefined;
     const result = await callLLM(messages, { maxTokens: 1200 }, override);
     
     console.log(`\n\n--- [AI DEBUG] OUTPUT DARI LLM UNTUK ${kodeFasil} ---`);

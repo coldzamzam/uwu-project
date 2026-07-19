@@ -205,7 +205,7 @@ export function configuredProviderNames(): string[] {
 
 export interface LLMOverride {
   provider: string;
-  apiKey: string;
+  apiKey?: string;
 }
 
 /** Memanggil LLM lewat provider pertama yang dikonfigurasi & berhasil, dengan
@@ -215,10 +215,14 @@ export interface LLMOverride {
 export async function callLLM(messages: ChatMessage[], opts?: CallOpts, override?: LLMOverride): Promise<string> {
   let candidates: Provider[] = [];
   
-  if (override?.provider && override?.apiKey) {
+  if (override?.provider) {
     const matched = PROVIDERS.find(p => p.name.toLowerCase() === override.provider.toLowerCase() || p.envVar === override.provider || p.name === override.provider);
     if (matched) {
-      candidates = [matched];
+      if (override.apiKey || matched.configured()) {
+        candidates = [matched];
+      } else {
+        throw new Error(`Anda belum memasukkan API Key untuk ${matched.name}, dan admin belum mengatur default key-nya.`);
+      }
     } else {
       throw new Error(`Provider AI tidak didukung: ${override.provider}`);
     }

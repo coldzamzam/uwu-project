@@ -361,6 +361,7 @@ export function FacilitatorAnalysisWorkbench({
   prevFacilitator,
   nextFacilitator,
   existingAnalisis,
+  configuredProviders = [],
 }: {
   row: FacilRow;
   hari: number;
@@ -368,12 +369,11 @@ export function FacilitatorAnalysisWorkbench({
   prevFacilitator: FacilitatorRef | null;
   nextFacilitator: FacilitatorRef | null;
   /** Hasil Analisis yang SUDAH ADA di spreadsheet (tabel log harian) untuk
-   * Hari ini, di-fetch server-side lewat fetchAnalisisFromSheet - dipakai
-   * sebagai nilai awal field di bawah supaya bisa diedit lagi, alih-alih
-   * selalu kosong. null kalau belum ada isinya atau gagal diambil (fallback
-   * ke row.analisis seperti sebelumnya, biasanya juga kosong untuk data
-   * asli - lihat catatan di lib/sheet.ts). */
+   * hari ini - supaya tidak ketimpa string kosong waktu visit pertama. */
   existingAnalisis: string | null;
+  /** Daftar nama provider AI yang sudah punya konfigurasi global (via env var di server).
+   * User tidak perlu memasukkan API key pribadi jika mereka memilih provider ini. */
+  configuredProviders?: string[];
 }) {
   const [hasil, setHasil] = useState(existingAnalisis ?? fieldValue(row, "analisis"));
   const [generating, setGenerating] = useState(false);
@@ -387,11 +387,15 @@ export function FacilitatorAnalysisWorkbench({
   const [copyAnalysisError, setCopyAnalysisError] = useState<string | null>(null);
 
   const [showConfig, setShowConfig] = useState(false);
-  const [aiProvider, setAiProvider] = useState<string>("Google Gemini");
+  const [aiProvider, setAiProvider] = useState<string>("");
   const [aiKeys, setAiKeys] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const savedProvider = localStorage.getItem("uwu_ai_provider") || "Google Gemini";
+    let savedProvider = localStorage.getItem("uwu_ai_provider") || "";
+    if (!savedProvider) {
+      // Default to the first configured provider from server, or fallback to OpenAI
+      savedProvider = configuredProviders.length > 0 ? configuredProviders[0] : "OpenAI";
+    }
     setAiProvider(savedProvider);
     try {
       const savedKeys = localStorage.getItem("uwu_ai_keys");
@@ -407,7 +411,7 @@ export function FacilitatorAnalysisWorkbench({
     } catch {
       // Abaikan error parse
     }
-  }, []);
+  }, [configuredProviders]);
 
   function saveConfig() {
     localStorage.setItem("uwu_ai_provider", aiProvider);
@@ -583,16 +587,19 @@ export function FacilitatorAnalysisWorkbench({
                 </select>
               </label>
               <label className="flex flex-col gap-1 w-2/3">
-                <span className="font-medium text-ink-primary">API Key</span>
+                <span className="font-medium text-ink-primary">API Key <span className="text-ink-muted text-[10px] font-normal">(opsional jika default)</span></span>
                 <input 
                   type="password"
                   value={aiKeys[aiProvider] || ""}
                   onChange={(e) => handleKeyChange(e.target.value)}
-                  placeholder={`Masukkan API Key untuk ${aiProvider}`}
+                  placeholder={configuredProviders?.includes(aiProvider) ? "(Telah dikonfigurasi oleh Admin)" : `Masukkan API Key untuk ${aiProvider}`}
                   className="rounded border border-border px-2 py-1.5 bg-surface text-ink-primary focus:border-series-1 focus:outline-none"
                 />
               </label>
             </div>
+            {configuredProviders?.includes(aiProvider) && !aiKeys[aiProvider] && (
+              <p className="text-[10px] text-status-success font-medium">✓ Sistem sudah memiliki kunci bawaan untuk provider ini. Anda tidak perlu mengisinya.</p>
+            )}
             <button 
               onClick={saveConfig}
               className="mt-1 w-fit rounded-md bg-series-1/10 px-3 py-1 font-medium text-series-1 hover:bg-series-1 hover:text-white transition-colors"
