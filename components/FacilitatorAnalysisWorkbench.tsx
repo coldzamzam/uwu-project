@@ -360,6 +360,8 @@ export function FacilitatorAnalysisWorkbench({
   mode,
   prevFacilitator,
   nextFacilitator,
+  facilPosition,
+  totalFacilitators,
   existingAnalisis,
   configuredProviders = [],
 }: {
@@ -368,6 +370,11 @@ export function FacilitatorAnalysisWorkbench({
   mode: "alltime" | "harian";
   prevFacilitator: FacilitatorRef | null;
   nextFacilitator: FacilitatorRef | null;
+  /** Urutan (1-based) fasilitator ini di antara SEMUA fasilitator yang
+   * dipegang admin ybs (bukan seluruh 30 fasilitator kalau admin cuma pegang
+   * sebagian) - null kalau kode-nya entah kenapa tidak ketemu di daftar. */
+  facilPosition: number | null;
+  totalFacilitators: number;
   /** Hasil Analisis yang SUDAH ADA di spreadsheet (tabel log harian) untuk
    * hari ini - supaya tidak ketimpa string kosong waktu visit pertama. */
   existingAnalisis: string | null;
@@ -530,6 +537,12 @@ export function FacilitatorAnalysisWorkbench({
           </Link>
         ) : (
           <span className="text-ink-muted">&larr; (awal daftar)</span>
+        )}
+        {facilPosition != null && (
+          <span className="text-ink-muted" title={`Fasilitator ke-${facilPosition} dari ${totalFacilitators} yang Anda pegang`}>
+            {facilPosition} / {totalFacilitators}
+            {facilPosition < totalFacilitators && ` · ${totalFacilitators - facilPosition} lagi`}
+          </span>
         )}
         {nextFacilitator ? (
           <Link

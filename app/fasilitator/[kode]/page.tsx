@@ -203,6 +203,8 @@ export default async function FacilitatorDetailPage({
             mode={mode}
             prevFacilitator={prevFacilitator}
             nextFacilitator={nextFacilitator}
+            facilPosition={facilIndex >= 0 ? facilIndex + 1 : null}
+            totalFacilitators={allFacilitators.length}
             existingAnalisis={existingAnalisis}
             configuredProviders={configuredProviderNames()}
           />
