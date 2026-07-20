@@ -8,7 +8,6 @@ import { DaySelector } from "@/components/DaySelector";
 import { ModeToggle } from "@/components/ModeToggle";
 import { SummaryCards } from "@/components/SummaryCards";
 import { StatTile } from "@/components/StatTile";
-import { AnalysisPanel } from "@/components/AnalysisPanel";
 import { QualitativeActivityChart } from "@/components/QualitativeActivityChart";
 import { AllFasilRawMatriksTable } from "@/components/AllFasilRawMatriksTable";
 
@@ -47,6 +46,9 @@ export default async function DashboardPage({
 
   const anomalyReports = scanAllAnomalies(rows, todayHari);
   const activity = countQualitativeActivityByDay(rows, todayHari);
+  // getFacilitators() sudah terurut alfabetis (lihat core/metrics.ts) - dipakai
+  // supaya "Mulai Analisis" selalu mulai dari fasilitator pertama urut nama.
+  const firstFacilitator = getFacilitators(rows)[0] ?? null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -87,12 +89,14 @@ export default async function DashboardPage({
 
       {mode === "alltime" && <QualitativeActivityChart data={activity} />}
 
-      <AnalysisPanel
-        endpoint="/api/analyze/summary"
-        payload={{ hari }}
-        title={mode === "alltime" ? `Ringkasan AI - Kondisi Terkini (Hari ${todayHari})` : `Ringkasan AI - Hari ${hari}`}
-        buttonLabel="Buat Ringkasan AI"
-      />
+      {firstFacilitator && (
+        <Link
+          href={`/fasilitator/${firstFacilitator.kodeFasil}`}
+          className="flex w-full items-center justify-center rounded-md bg-series-1 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-series-1/90"
+        >
+          Mulai Analisis - dari {firstFacilitator.namaFasil} (fasilitator pertama, urut A-Z)
+        </Link>
+      )}
 
       <AllFasilRawMatriksTable rows={dayRows} />
     </div>

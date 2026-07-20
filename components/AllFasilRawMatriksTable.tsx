@@ -22,8 +22,8 @@ function formatPercentDisplay(raw: string): string {
 }
 
 export function AllFasilRawMatriksTable({ rows }: { rows: FacilRow[] }) {
-  const [sortKey, setSortKey] = useState<SortKey>("skorAkhir");
-  const [asc, setAsc] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("nama");
+  const [asc, setAsc] = useState(true);
   const [kampus, setKampus] = useState<string>("semua");
   const [koordinator, setKoordinator] = useState<string>("semua");
 
