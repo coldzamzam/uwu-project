@@ -500,8 +500,16 @@ export function FacilitatorAnalysisWorkbench({
       if (!res.ok) throw new Error(data.error || "Gagal menyimpan ke spreadsheet.");
       if ((data.updated ?? 0) === 0) {
         setSaveState("error");
+        // data.notFound (dari pushAnalysisToSheet) punya alasan SPESIFIK
+        // ("tabel log tidak ketemu", "gagal akses sheet", "baris hari ke-N
+        // tidak ketemu", dst, lihat lib/writeSheet.ts) - JANGAN dibuang,
+        // pesan generik di bawah cuma fallback kalau server tidak
+        // mengirimkannya sama sekali.
+        const reason: string[] | undefined = data.notFound;
         setSaveError(
-          `Tidak ditemukan baris "${row.kodeFasil}" + Hari ${hari} di spreadsheet LK fasilitator tersebut.`
+          reason && reason.length > 0
+            ? reason.join("; ")
+            : `Tidak ditemukan baris "${row.kodeFasil}" + Hari ${hari} di spreadsheet LK fasilitator tersebut.`
         );
       } else {
         setSaveState("done");

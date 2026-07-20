@@ -1,4 +1,4 @@
-import { activeCheckpoints, buildKnowledgeSummary } from "./knowledge/checkpoints";
+import { activeCheckpoints, buildKnowledgeSummary, TOTAL_HARI_SIKLUS } from "./knowledge/checkpoints";
 import { getEffectiveRisk, summarizeDay } from "./metrics";
 import { getCheckpointCompliance, countNonCompliant } from "./compliance";
 import type { CheckpointCompliance } from "./compliance";
@@ -556,24 +556,29 @@ const STALL_NOTE_PATTERN = /sampai\s+hari\s+ke-?\s*(\d+)/i;
 /**
  * "Hari terakhir fasilitator ini BENERAN mengisi LK Fasil" - BUKAN row.hari!
  * row.hari di tab "masterLog" itu artinya "hari yang direpresentasikan
- * snapshot ini" (SAMA untuk SEMUA fasilitator dalam satu snapshot, sekarang
- * kebetulan selalu 13 karena baru ada satu snapshot) - BUKAN "hari terakhir
- * fasilitator ini update", beda dari arsitektur lama (tab "Log" per
- * fasilitator) yang row.hari-nya memang berarti begitu. DIKONFIRMASI
- * 2026-07-18: satu-satunya sinyal "fasilitator ini macet sejak hari X" yang
- * tersedia sekarang adalah catatan manual admin di kolom Kendala (pola
- * "sampai Hari ke-N") - kalau tidak ketemu pola itu di kolom manapun,
- * fallback ke `hari` (hari ini/yang lagi dilihat), ASUMSI fasilitator masih
- * update normal. Heuristik berbasis teks bebas ini TIDAK dijamin selalu
- * akurat - kalau ternyata ada sumber data terstruktur yang lebih baik untuk
- * ini, ganti fungsi ini yang duluan. */
-function findLastFilledDay(row: FacilRow, fallbackHari: number): number {
+ * snapshot ini" (SAMA untuk SEMUA fasilitator dalam satu snapshot) - BUKAN
+ * "hari terakhir fasilitator ini update", beda dari arsitektur lama (tab
+ * "Log" per fasilitator) yang row.hari-nya memang berarti begitu.
+ * DIKONFIRMASI 2026-07-20 oleh program owner: tab ini TIDAK punya histori
+ * per-hari sama sekali - setiap kali ditarik, isinya cuma kondisi TERKINI
+ * sheet fasilitator itu (auto-pull dari spreadsheet lain), jadi TIDAK ADA
+ * cara membandingkan "berubah/tidak dari hari sebelumnya" seperti
+ * streakStartDay di atas. Satu-satunya sinyal "fasilitator ini macet sejak
+ * hari X" yang tersedia adalah catatan manual admin di kolom Kendala (pola
+ * "sampai Hari ke-N", SELALU dituliskan admin sebagai "...(harusnya sudah
+ * Hari ke-{TOTAL_HARI_SIKLUS})" - dikonfirmasi dari contoh kendala asli,
+ * TOTAL_HARI_SIKLUS itu target/batas TETAP pengisian LK Fasil, BUKAN
+ * dihitung dari `hari`/kalender saat ini yang bisa lebih dari
+ * TOTAL_HARI_SIKLUS). KALAU tidak ketemu pola itu di kolom manapun, artinya
+ * TIDAK ADA yang melaporkan dia macet - fallback ke TOTAL_HARI_SIKLUS
+ * (anggap sudah mengisi penuh sampai batas akhir), BUKAN suatu klaim macet. */
+function findLastFilledDay(row: FacilRow): number {
   for (const key of KENDALA_FIELDS_FOR_STALL_CHECK) {
     const text = kendalaTextOrEmpty(row[key]);
     const match = text.match(STALL_NOTE_PATTERN);
     if (match) return parseInt(match[1], 10);
   }
-  return fallbackHari;
+  return TOTAL_HARI_SIKLUS;
 }
 
 const COPY_PROMPT_REFERENCE_EXAMPLE = `Fasil ini hanya mengisi LK Fasil sampai hari ke-4.
@@ -627,11 +632,24 @@ export function buildFacilitatorCopyPromptText(row: FacilRow, hari: number): str
   const currentGroup = dueCheckpoints[dueCheckpoints.length - 1] ?? null; // checkpoint PALING BARU jatuh tempo
   const currentCompliance = currentGroup ? compliance.find((c) => c.group.no === currentGroup.no) ?? null : null;
 
+  const hariTerakhirDiisiFasil = findLastFilledDay(row);
+  // Dihitung di kode, BUKAN diserahkan ke LLM buat mutusin sendiri - LLM
+  // terbukti kurang reliable untuk keputusan begini (lihat komentar
+  // compactEntry di atas). hariTerakhirDiisiFasil === TOTAL_HARI_SIKLUS
+  // berarti TIDAK ADA kendala "sampai Hari ke-N" yang dilaporkan admin -
+  // artinya fasil dianggap SUDAH mengisi penuh sampai batas akhir
+  // (TOTAL_HARI_SIKLUS), BUKAN macet, jadi baris pembuka "macet" wajib
+  // dilewati. Cuma kalau ada laporan eksplisit yang nilainya di BAWAH
+  // TOTAL_HARI_SIKLUS baris pembuka ini muncul.
+  const barisPembukaMacet =
+    hariTerakhirDiisiFasil < TOTAL_HARI_SIKLUS ? `Fasil ini hanya mengisi LK Fasil sampai hari ke-${hariTerakhirDiisiFasil}.` : null;
+
   const data = {
     fasilitator: row.namaFasil,
     kodeFasil: row.kodeFasil,
-    hariTerakhirDiisiFasil: findLastFilledDay(row, hari),
+    hariTerakhirDiisiFasil,
     hariIni: hari,
+    barisPembukaMacet,
     skorAkhir: typeof row.skorAkhir === "number" ? row.skorAkhir : null,
     checkpointWajibHariIni: currentGroup
       ? {
@@ -706,7 +724,7 @@ ${COPY_PROMPT_REFERENCE_EXAMPLE}
 === AKHIR CONTOH REFERENSI ===
 
 ATURAN WAJIB:
-1. Ikuti urutan paragraf PERSIS seperti contoh: (a) baris pembuka "Fasil ini hanya mengisi LK Fasil sampai hari ke-X.", (b) baris "Nilai capaian fasil atas [Nama] [kata sifat sesuai skornya] di angka [Skor Akhir] (masuk kriteria "[label]")..." - pilih sendiri kata sifat & label kriteria (mis. Kritis/Rendah/Cukup/Baik/Sangat Baik) yang paling sesuai dengan besarnya skor, (c) paragraf "Checkpoint wajib untuk hari ke-X yaitu ...", jelaskan checkpoint yang sedang berlaku (lihat "checkpointWajibHariIni" di data) dan status pencapaiannya, tutup dengan menyebutkan SPESIFIK checkpoint/kategori mana yang jadi penyebab utama (bukan kalimat generik "beberapa hal berpotensi berpengaruh").
+1. Ikuti urutan paragraf PERSIS seperti contoh: (a) baris pembuka - lihat field "barisPembukaMacet" di data: KALAU isinya sebuah teks, salin teks itu APA ADANYA sebagai baris pembuka (JANGAN diubah/dihitung ulang); KALAU isinya null, LEWATI baris pembuka ini sepenuhnya dan langsung mulai dari baris (b) - JANGAN pernah membuat sendiri baris pembuka "hanya mengisi sampai hari ke-X" dari angka hariTerakhirDiisiFasil/hariIni, HANYA salin dari field barisPembukaMacet. CATATAN: 14 hari adalah batas/target TETAP pengisian LK Fasil untuk SEMUA fasilitator (bukan dihitung dari hariIni yang bisa lebih besar dari 14) - kalau hariTerakhirDiisiFasil bernilai 14 dan barisPembukaMacet null, itu artinya fasil SUDAH mengisi penuh sampai batas akhir, BUKAN sebuah kendala/keterlambatan - JANGAN pernah menyiratkan itu sebagai masalah di paragraf manapun, (b) baris "Nilai capaian fasil atas [Nama] [kata sifat sesuai skornya] di angka [Skor Akhir] (masuk kriteria "[label]")..." - pilih sendiri kata sifat & label kriteria (mis. Kritis/Rendah/Cukup/Baik/Sangat Baik) yang paling sesuai dengan besarnya skor, (c) paragraf "Checkpoint wajib untuk hari ke-X yaitu ...", jelaskan checkpoint yang sedang berlaku (lihat "checkpointWajibHariIni" di data) dan status pencapaiannya, tutup dengan menyebutkan SPESIFIK checkpoint/kategori mana yang jadi penyebab utama (bukan kalimat generik "beberapa hal berpotensi berpengaruh").
 2. SETELAH itu, WAJIB bahas KE-8 kategori berikut, satu paragraf per kategori, SATU PER SATU dengan urutan dan label PERSIS ini (pakai tanda kutip dua untuk kata "Sesuai"): "Sekolah login aplikasi:", "Perencana:", "Unggah dokumen teknis:", "Verifikasi dokumen teknis:", "Verifikasi dokumen teknis "Sesuai":", "Unggah dokumen admin:", "Verifikasi dokumen admin:", "Verifikasi dokumen admin "Sesuai":".
 3. PENTING - BEDA DARI KEBIASAAN UMUM: WAJIB SEBUTKAN SEMUA 8 kategori itu WALAUPUN capaiannya sudah 100%/sempurna - JANGAN pernah dilewati/di-skip. Kalau sudah 100%, tulis dengan nada positif (contoh: "seluruhnya sudah terverifikasi oleh fasil"), JANGAN dihilangkan dari hasil.
 4. Kalau ada kolom "kendala..." yang isinya bukan string kosong di data, sertakan isinya apa adanya sebagai kalimat kendala di paragraf terkait. Kalau kosong, tulis kalimat seperti pada contoh ("Kendala terkait ... tidak teridentifikasi karena fasil tidak mengisi informasi terkait hal ini di LK Fasil").

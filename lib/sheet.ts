@@ -246,8 +246,11 @@ function stripTime(d: Date): Date {
 
 /** Menentukan "Hari ke-" untuk tanggal tertentu (default hari ini), berdasar
  * jadwal di tab "Check Point" kalau tersedia, dengan fallback ke
- * FALLBACK_ANCHOR kalau tidak. Hasil di-clamp ke rentang siklus 1-14 - pola
- * identik v1 (lib/sheet.ts), cuma sumbernya sekarang master spreadsheet. */
+ * FALLBACK_ANCHOR kalau tidak. TIDAK di-clamp ke atas ke 14 lagi - siklus di
+ * lapangan sudah terbukti berjalan lewat 14 hari (dikonfirmasi 2026-07-20,
+ * ada fasil dengan data sampai Hari ke-15), jadi tidak ada tanggal akhir
+ * tetap yang bisa dijadikan patokan cap. Cuma di-floor ke minimal 1 supaya
+ * tidak negatif/nol untuk tanggal sebelum hari pertama siklus. */
 export async function getTodayHari(referenceDate: Date = new Date()): Promise<number> {
   const schedule = await getCheckpointSchedule();
   const anchorEntry = schedule.find((e) => e.tanggal != null);
@@ -257,5 +260,5 @@ export async function getTodayHari(referenceDate: Date = new Date()): Promise<nu
   base.setDate(base.getDate() - (anchor.hari - 1));
   const msPerDay = 24 * 60 * 60 * 1000;
   const diffDays = Math.round((stripTime(referenceDate).getTime() - stripTime(base).getTime()) / msPerDay);
-  return Math.min(14, Math.max(1, diffDays + 1));
+  return Math.max(1, diffDays + 1);
 }

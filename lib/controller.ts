@@ -13,7 +13,14 @@ import Papa from "papaparse";
  * spreadsheet LK pribadi masing-masing, TANPA fragment #gid= - berarti
  * selalu mengarah ke tab PERTAMA/default spreadsheet itu, gid diasumsikan
  * "0" - tab data sebenarnya, "Isian", ada di gid lain, lihat lib/sheet.ts).
- */
+ *
+ * KOREKSI 2026-07-20: "LK Log" (kolom F) itu BUKAN LK Fasil pribadi -
+ * spreadsheet LOG (audit/histori pengisian), beda dari "LK Fasilitator"
+ * (kolom G) yang justru spreadsheet LK Fasil pribadi sebenarnya. Field
+ * `spreadsheetId`/`gid` di bawah SENGAJA tetap merujuk ke "LK Log" (dipakai
+ * luas di seluruh app buat baca data "Isian" dsb, JANGAN diubah tanpa audit
+ * penuh) - "LK Fasilitator" ditambahkan terpisah di
+ * `lkFasilSpreadsheetId`/`lkFasilGid` khusus untuk tombol "LK Fasil ↗" di UI. */
 const FASILITATOR_HEADER_ANCHOR = '"Atmin","Kode Fasil","Nama Fasil"';
 
 export interface ControllerFacilitatorEntry {
@@ -22,6 +29,8 @@ export interface ControllerFacilitatorEntry {
   namaFasil: string;
   spreadsheetId: string;
   gid: string;
+  lkFasilSpreadsheetId: string | null;
+  lkFasilGid: string | null;
 }
 
 export function isControllerConfigured(): boolean {
@@ -100,12 +109,22 @@ export async function getControllerEntries(): Promise<ControllerFacilitatorEntry
           console.warn(`[controller] "LK Log" untuk ${kodeFasil} bukan URL spreadsheet Google yang valid: "${tautan}".`);
           continue;
         }
+        // "LK Fasilitator" (kolom G) - beda dari "LK Log" di atas, opsional
+        // (jangan buang seluruh baris kalau kosong/tidak valid, cuma tombol
+        // "LK Fasil ↗"-nya saja yang tidak muncul).
+        const tautanLkFasil = (row["LK Fasilitator"] ?? "").trim();
+        const parsedLkFasilUrl = tautanLkFasil ? parseSheetIdAndGid(tautanLkFasil) : null;
+        if (tautanLkFasil && !parsedLkFasilUrl) {
+          console.warn(`[controller] "LK Fasilitator" untuk ${kodeFasil} bukan URL spreadsheet Google yang valid: "${tautanLkFasil}".`);
+        }
         entries.push({
           atmin: (row["Atmin"] ?? "").trim(),
           kodeFasil,
           namaFasil: (row["Nama Fasil"] ?? "").trim(),
           spreadsheetId: parsedUrl.spreadsheetId,
           gid: parsedUrl.gid,
+          lkFasilSpreadsheetId: parsedLkFasilUrl?.spreadsheetId ?? null,
+          lkFasilGid: parsedLkFasilUrl?.gid ?? null,
         });
       }
 

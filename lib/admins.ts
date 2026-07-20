@@ -13,7 +13,7 @@ export async function getAdminList(): Promise<string[]> {
 export const ADMIN_EMAIL_MAP: Record<string, string> = {
   "jakiuuzan19@gmail.com": "Muhammad Dzaky Fauzan",
   "marvinugraha@gmail.com": "Marvin Raditya Nugraha",
-  "rifatsyahman@gmail.com": "Mochamad Rifat Syahman Hambali",
+  "rifatok123@gmail.com": "Mochamad Rifat Syahman Hambali",
   "zamaqsa99@gmail.com": "Aqsa Zamzami",
   "yasmeenalmira9@gmail.com": "Yasmeen Almira",
   "adziimamulkan@gmail.com": "Muhammad Mulkan Adziima",

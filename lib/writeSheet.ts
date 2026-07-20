@@ -27,7 +27,20 @@ async function findLogTable(spreadsheetId: string, accessToken: string) {
     headers: { Authorization: `Bearer ${accessToken}` },
     next: { revalidate: 60 } // cache metadata sebentar
   });
-  if (!metaRes.ok) throw new Error(`Gagal akses spreadsheet (HTTP ${metaRes.status})`);
+  if (!metaRes.ok) {
+    // Body error Google BIASANYA sangat spesifik (mis. "API belum diaktifkan
+    // di project ..." vs "The caller does not have permission" - dua
+    // penyebab 403 yang solusinya beda total) - JANGAN cuma simpan kode
+    // HTTP-nya, itu tidak cukup buat didiagnosis.
+    const detail = await metaRes.text().catch(() => "");
+    let detailMsg = detail;
+    try {
+      detailMsg = JSON.parse(detail)?.error?.message ?? detail;
+    } catch {
+      // biarkan detailMsg = raw text kalau bukan JSON
+    }
+    throw new Error(`Gagal akses spreadsheet (HTTP ${metaRes.status}): ${detailMsg}`);
+  }
   const metaData = await metaRes.json();
   const sheets: string[] = metaData.sheets?.map((s: any) => s.properties.title) || [];
 
@@ -122,7 +135,11 @@ export async function pushAnalysisToSheet(items: AnalysisSaveItem[], accessToken
     try {
       found = await findLogTable(spreadsheetId, accessToken);
     } catch (err) {
-      groupItems.forEach((i) => notFound.push(`${label} Hari ${i.hari} (gagal akses sheet)`));
+      // JANGAN buang detail errornya (mis. "HTTP 403" vs "HTTP 401") - beda
+      // penyebab (token tidak valid vs akun tidak punya izin ke sheet ini)
+      // butuh tindak lanjut yang beda juga.
+      const detail = err instanceof Error ? err.message : String(err);
+      groupItems.forEach((i) => notFound.push(`${label} Hari ${i.hari} (gagal akses sheet: ${detail})`));
       continue;
     }
 

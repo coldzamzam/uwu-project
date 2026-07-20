@@ -15,7 +15,7 @@ import { ModeToggle } from "@/components/ModeToggle";
 import { FacilitatorAnalysisWorkbench, FacilKendalaPanel } from "@/components/FacilitatorAnalysisWorkbench";
 import { RiskBadge } from "@/components/RiskBadge";
 import { AnomalyList } from "@/components/AnomalyList";
-import { getFacilitatorLkEditUrl } from "@/lib/facilitatorLkLinks";
+import { getFacilitatorLkEditUrl, getFacilitatorLkFasilEditUrl } from "@/lib/facilitatorLkLinks";
 import { TodayLogPanel } from "@/components/TodayLogPanel";
 
 function hariRelativeLabel(hari: number, todayHari: number): string {
@@ -44,13 +44,16 @@ export default async function FacilitatorDetailPage({
   const eagerHari = mode === "harian" && hariParam ? parseInt(hariParam, 10) : null;
   const eagerAnalisis = eagerHari != null ? fetchAnalisisFromSheet(kode, eagerHari, accessToken) : null;
 
-  // v2: link LK Fasil pribadi & histori tab "Log" datang dari spreadsheet
-  // controller (fetch async), beda dari v1 yang baca env var statis secara
-  // sinkron - independen satu sama lain jadi di-fetch paralel.
-  const [rows, todayHari, editUrl, logData] = await Promise.all([
+  // v2: link "LK Log" (editUrl, kolom F) & "LK Fasilitator" (lkFasilEditUrl,
+  // kolom G - LK Fasil pribadi sebenarnya, lihat lib/controller.ts) & histori
+  // tab "Log" datang dari spreadsheet controller (fetch async), beda dari v1
+  // yang baca env var statis secara sinkron - independen satu sama lain jadi
+  // di-fetch paralel.
+  const [rows, todayHari, editUrl, lkFasilEditUrl, logData] = await Promise.all([
     getFacilRowsForSelectedAdmin(),
     getTodayHari(),
     getFacilitatorLkEditUrl(kode),
+    getFacilitatorLkFasilEditUrl(kode),
     getFacilitatorLogData(kode),
   ]);
 
@@ -135,6 +138,16 @@ export default async function FacilitatorDetailPage({
             {editUrl && (
               <a
                 href={editUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-ink-secondary hover:border-series-1 hover:text-series-1"
+              >
+                LK Log ↗
+              </a>
+            )}
+            {lkFasilEditUrl && (
+              <a
+                href={lkFasilEditUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-ink-secondary hover:border-series-1 hover:text-series-1"
