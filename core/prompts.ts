@@ -583,7 +583,7 @@ function findLastFilledDay(row: FacilRow): number {
 
 const COPY_PROMPT_REFERENCE_EXAMPLE = `Fasil ini hanya mengisi LK Fasil sampai hari ke-4.
 
-Nilai capaian fasil atas Muhammad Haditya Yervan sangat rendah di angka 26.41 karena banyak checkpoint yang capaiannya masih rendah.
+Nilai capaian fasil atas Muhammad Haditya Yervan berada di angka 26.41 karena banyak checkpoint yang capaiannya masih rendah.
 
 Checkpoint wajib untuk hari ke-12 yaitu seluruh sekolah telah sepakat RAB (Final Checkpoint). Namun, sampai saat ini tidak ada sekolah yang sudah sepakat RAB. Beberapa hal yang berpengaruh terhadap capaian tersebut adalah belum tercapainya checkpoint perencana dan rendahnya angka unggah dan verifikasi dokumen teknis.
 
@@ -647,8 +647,14 @@ export function buildFacilitatorCopyPromptText(row: FacilRow, hari: number): str
   const data = {
     fasilitator: row.namaFasil,
     kodeFasil: row.kodeFasil,
-    hariTerakhirDiisiFasil,
-    hariIni: hari,
+    // hariTerakhirDiisiFasil/hariIni SENGAJA TIDAK diekspos ke LLM lagi
+    // (dulu ada di sini) - walau instruksi sudah eksplisit "HANYA salin dari
+    // barisPembukaMacet", LLM eksternal (Gemini dkk, di luar kontrol kode
+    // ini) TERBUKTI tetap mengarang sendiri kalimat "Fasil ini hanya mengisi
+    // LK Fasil sampai hari ke-X" dari dua angka ini walau barisPembukaMacet
+    // null (dikonfirmasi nyata di produksi, BUKAN cuma teori). Cara paling
+    // ampuh mencegah itu: jangan kasih bahan mentahnya sama sekali - LLM
+    // cuma lihat barisPembukaMacet yang SUDAH JADI (teks atau null).
     barisPembukaMacet,
     skorAkhir: typeof row.skorAkhir === "number" ? row.skorAkhir : null,
     checkpointWajibHariIni: currentGroup
@@ -724,7 +730,7 @@ ${COPY_PROMPT_REFERENCE_EXAMPLE}
 === AKHIR CONTOH REFERENSI ===
 
 ATURAN WAJIB:
-1. Ikuti urutan paragraf PERSIS seperti contoh: (a) baris pembuka - lihat field "barisPembukaMacet" di data: KALAU isinya sebuah teks, salin teks itu APA ADANYA sebagai baris pembuka (JANGAN diubah/dihitung ulang); KALAU isinya null, LEWATI baris pembuka ini sepenuhnya dan langsung mulai dari baris (b) - JANGAN pernah membuat sendiri baris pembuka "hanya mengisi sampai hari ke-X" dari angka hariTerakhirDiisiFasil/hariIni, HANYA salin dari field barisPembukaMacet. CATATAN: 14 hari adalah batas/target TETAP pengisian LK Fasil untuk SEMUA fasilitator (bukan dihitung dari hariIni yang bisa lebih besar dari 14) - kalau hariTerakhirDiisiFasil bernilai 14 dan barisPembukaMacet null, itu artinya fasil SUDAH mengisi penuh sampai batas akhir, BUKAN sebuah kendala/keterlambatan - JANGAN pernah menyiratkan itu sebagai masalah di paragraf manapun, (b) baris "Nilai capaian fasil atas [Nama] [kata sifat sesuai skornya] di angka [Skor Akhir] karena ..." - pilih sendiri kata sifat (mis. sangat rendah/rendah/cukup/baik/sangat baik) yang paling sesuai dengan besarnya skor, TAPI JANGAN tulis embel-embel "(masuk kriteria "...")" atau sejenisnya - TIDAK ADA definisi ambang batas resmi untuk itu, jangan mengarang klasifikasi yang terkesan formal/otoritatif padahal tidak berdasar, (c) paragraf "Checkpoint wajib untuk hari ke-X yaitu ...", jelaskan checkpoint yang sedang berlaku (lihat "checkpointWajibHariIni" di data) dan status pencapaiannya, tutup dengan menyebutkan SPESIFIK checkpoint/kategori mana yang jadi penyebab utama (bukan kalimat generik "beberapa hal berpotensi berpengaruh").
+1. Ikuti urutan paragraf PERSIS seperti contoh: (a) baris pembuka - lihat field "barisPembukaMacet" di data: KALAU isinya sebuah teks, salin teks itu APA ADANYA sebagai baris pembuka (JANGAN diubah satu kata pun); KALAU isinya null, LEWATI baris pembuka ini SEPENUHNYA (JANGAN tulis kalimat apapun sebagai gantinya) dan langsung mulai dari baris (b). PERINGATAN KERAS: barisPembukaMacet null artinya fasil SUDAH mengisi PENUH sampai batas akhir siklus - ini BUKAN kendala/keterlambatan. JANGAN PERNAH mengarang sendiri kalimat sejenis "Fasil ini hanya/baru mengisi LK Fasil sampai hari ke-X" dari data lain manapun di JSON ini kalau barisPembukaMacet null - itu HALUSINASI, tidak ada dasarnya sama sekali di data, (b) baris "Nilai capaian fasil atas [Nama] berada di angka [Skor Akhir] karena ..." - HANYA sebutkan angkanya lalu langsung jelaskan alasannya (grounded ke checkpoint/data yang bermasalah). JANGAN tempelkan kata sifat/label kualitatif APAPUN ke skor itu sendiri buat menilai/mengkategorikannya - dilarang keras semua variasi berikut (daftar ini contoh, BUKAN daftar lengkap, prinsipnya: dilarang SEMUA bentuk penilaian kualitatif atas skor): "(masuk kriteria "...")", "tergolong rendah/cukup/baik", "termasuk kategori ...", "terbilang ...", atau menyisipkan kata sifat langsung sebelum/sesudah angka skornya (mis. "sangat rendah di angka X", "X yang cukup baik") - TIDAK ADA definisi ambang batas resmi buat menilai skor 0-100 itu bagus/jelek, jadi JANGAN menilai skornya sama sekali, cukup laporkan angkanya apa adanya dan biarkan pembaca menyimpulkan sendiri dari penjelasan checkpoint yang menyertainya, (c) paragraf "Checkpoint wajib untuk hari ke-X yaitu ...", jelaskan checkpoint yang sedang berlaku (lihat "checkpointWajibHariIni" di data) dan status pencapaiannya, tutup dengan menyebutkan SPESIFIK checkpoint/kategori mana yang jadi penyebab utama (bukan kalimat generik "beberapa hal berpotensi berpengaruh").
 2. SETELAH itu, WAJIB bahas KE-8 kategori berikut, satu paragraf per kategori, SATU PER SATU dengan urutan dan label PERSIS ini (pakai tanda kutip dua untuk kata "Sesuai"): "Sekolah login aplikasi:", "Perencana:", "Unggah dokumen teknis:", "Verifikasi dokumen teknis:", "Verifikasi dokumen teknis "Sesuai":", "Unggah dokumen admin:", "Verifikasi dokumen admin:", "Verifikasi dokumen admin "Sesuai":".
 3. PENTING - BEDA DARI KEBIASAAN UMUM: WAJIB SEBUTKAN SEMUA 8 kategori itu WALAUPUN capaiannya sudah 100%/sempurna - JANGAN pernah dilewati/di-skip. Kalau sudah 100%, tulis dengan nada positif (contoh: "seluruhnya sudah terverifikasi oleh fasil"), JANGAN dihilangkan dari hasil.
 4. Kalau ada kolom "kendala..." yang isinya bukan string kosong di data, sertakan isinya apa adanya sebagai kalimat kendala di paragraf terkait. Kalau kosong, tulis kalimat seperti pada contoh ("Kendala terkait ... tidak teridentifikasi karena fasil tidak mengisi informasi terkait hal ini di LK Fasil").
