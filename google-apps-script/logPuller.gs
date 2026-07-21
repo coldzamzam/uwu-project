@@ -142,7 +142,8 @@ const MLOG_LOG_HEADERS = ['Timestamp', 'Baris Master', 'Nama Fasil', 'Keterangan
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Logging Matriks')
-    .addItem('Jalankan Sekarang (paksa, abaikan jendela jam)', 'mlogRunForced')
+    .addItem('Jalankan Log 1 Pagi (Paksa)', 'mlogRunForcedLog1')
+    .addItem('Jalankan Log 2 Sore (Paksa)', 'mlogRunForcedLog2')
     .addItem('Cek Progres', 'mlogShowProgress')
     .addSeparator()
     .addItem('DEBUG: Cek 1 Fasilitator', 'mlogDebugSingleFasilitator')
@@ -176,11 +177,16 @@ function mlogTick() {
   mlogRunWindow_(activeWindow, now);
 }
 
-// Untuk tes manual dari menu -- paksa jalan walau di luar jendela waktu,
-// pakai window ke-1 sebagai default kalau tidak sedang dalam jendela manapun
-function mlogRunForced() {
+// Untuk tes manual dari menu -- paksa jalan walau di luar jendela waktu
+function mlogRunForcedLog1() {
   const now = new Date();
-  const activeWindow = mlogGetActiveWindow_(now) || MLOG_CONFIG.WINDOWS[0];
+  const activeWindow = mlogGetActiveWindow_(now) || MLOG_CONFIG.WINDOWS[0]; // Paksa jendela 1 (Log 1)
+  mlogRunWindow_(activeWindow, now);
+}
+
+function mlogRunForcedLog2() {
+  const now = new Date();
+  const activeWindow = mlogGetActiveWindow_(now) || MLOG_CONFIG.WINDOWS[1]; // Paksa jendela 2 (Log 2)
   mlogRunWindow_(activeWindow, now);
 }
 
