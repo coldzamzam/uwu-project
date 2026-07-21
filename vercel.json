@@ -1,8 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/cron/sync-logs",
-      "schedule": "*/5 0-4,6-10 * * *"
-    }
-  ]
-}
