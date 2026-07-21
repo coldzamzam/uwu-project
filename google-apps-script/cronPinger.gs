@@ -22,7 +22,7 @@
 
 function panggilVercelCron() {
   // GANTI INI DENGAN DOMAIN VERCEL-MU YANG AKTIF
-  var NEXTJS_CRON_URL = "https://uwu-dashboard.vercel.app/api/cron/sync-logs";
+  var NEXTJS_CRON_URL = "https://uwu-project.vercel.app/api/cron/sync-logs";
   
   // GANTI DENGAN CRON_SECRET YANG ADA DI VERCEL ENVIRONMENT VARIABLES (.env.local)
   var CRON_SECRET = "RahasiaVercelCron123!";
