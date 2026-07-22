@@ -1,8 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getFacilRowsForSelectedAdmin, getTodayHari, getFacilitatorLogData } from "@/lib/sheet";
-import { fetchAnalisisTable } from "@/lib/writeSheet";
-import { auth } from "@/lib/auth";
 import { getRowsForFacilitator, riskLevel, getEffectiveRisk, getCurrentRow, getFacilitators } from "@uwu/core/metrics";
 import { configuredProviderNames } from "@uwu/core/llm";
 import { getCheckpointCompliance, countNonCompliant } from "@uwu/core/compliance";
@@ -24,6 +22,8 @@ function hariRelativeLabel(hari: number, todayHari: number): string {
   return "belum terjadi";
 }
 
+
+
 export default async function FacilitatorDetailPage({
   params,
   searchParams,
@@ -34,16 +34,6 @@ export default async function FacilitatorDetailPage({
   const { kode } = await params;
   const { hari: hariParam, mode: modeParam } = await searchParams;
   const mode: "alltime" | "harian" = modeParam === "alltime" ? "alltime" : "harian";
-
-  const session = await auth();
-  // @ts-expect-error accessToken ada di config JWT NextAuth kita
-  const accessToken = session?.accessToken;
-
-  // fetchAnalisisTable (lewat REST API Sheets) TERUKUR cepat karena caching
-  // metadata sheet - jalankan paralel dari awal (satu fetch ambil SEMUA hari
-  // sekaligus, dipakai buat prefill textarea DAN status per-hari di
-  // DaySelector, lihat missingAnalysisDays di bawah).
-  const analisisTablePromise = fetchAnalisisTable(kode, accessToken);
 
   // v2: link "LK Log" (editUrl, kolom F) & "LK Fasilitator" (lkFasilEditUrl,
   // kolom G - LK Fasil pribadi sebenarnya, lihat lib/controller.ts) & histori
@@ -65,7 +55,7 @@ export default async function FacilitatorDetailPage({
   const history = logData && logData.history.length > 0 ? logData.history : getRowsForFacilitator(rows, kode);
   if (history.length === 0) notFound();
 
-  const days = history.map((r) => r.hari);
+  const days = history.map((r: FacilRow) => r.hari);
   const latestDay = days[days.length - 1];
 
   let hari: number;
@@ -75,7 +65,7 @@ export default async function FacilitatorDetailPage({
     hari = currentRow.hari;
   } else {
     hari = hariParam ? parseInt(hariParam, 10) : latestDay;
-    currentRow = history.find((r) => r.hari === hari) ?? getCurrentRow(history, todayHari) ?? history[history.length - 1];
+    currentRow = history.find((r: FacilRow) => r.hari === hari) ?? getCurrentRow(history, todayHari) ?? history[history.length - 1];
   }
 
   // Ikuti hari yang lagi dipilih (DaySelector), bukan cuma hari ini - supaya
@@ -90,20 +80,6 @@ export default async function FacilitatorDetailPage({
   const nonCompliantCount = countNonCompliant(compliance);
   const relLabel = hariRelativeLabel(hari, todayHari);
 
-  // Isi kolom "Analisis" yang SUDAH ADA di spreadsheet (tabel log harian,
-  // bukan tab "Isian" yang di-fetch getFacilRows() - lihat fetchAnalisisTable)
-  // untuk Hari yang lagi dilihat, supaya field di FacilitatorAnalysisWorkbench
-  // ke-prefill dan bisa diedit lagi, bukan selalu kosong. null (gagal-lunak
-  // di banyak kondisi, termasuk kalau belum login Google/tabel gagal diakses)
-  // berarti workbench fallback ke kosong seperti sebelumnya.
-  const analisisTable = await analisisTablePromise;
-  const existingAnalisis = analisisTable?.get(hari) || null;
-  // Dipakai DaySelector buat nandain tombol hari yang SUDAH lewat/hari ini
-  // tapi BELUM ada hasil analisis tersimpan (merah + "!") - undefined (bukan
-  // Set kosong) kalau tabelnya gagal diambil sama sekali, supaya DaySelector
-  // tidak salah nandain SEMUA hari sebagai "belum ada" padahal cuma gagal fetch.
-  const missingAnalysisDays = analisisTable ? new Set(days.filter((d) => !(analisisTable.get(d) ?? "").trim())) : undefined;
-
   const notes = buildNoteRanges(history, QUALITATIVE_FIELDS, (text) => text !== "Belum Diisi");
   const unfilled = buildNoteRanges(history, QUALITATIVE_FIELDS, (text) => text === "Belum Diisi");
   const anomalies = detectFacilitatorAnomalies(history, todayHari);
@@ -115,6 +91,12 @@ export default async function FacilitatorDetailPage({
   const facilIndex = allFacilitators.findIndex((f) => f.kodeFasil === kode);
   const prevFacilitator = facilIndex > 0 ? allFacilitators[facilIndex - 1] : null;
   const nextFacilitator = facilIndex >= 0 && facilIndex < allFacilitators.length - 1 ? allFacilitators[facilIndex + 1] : null;
+
+  // missingAnalysisDays = undefined di render pertama — DaySelector sudah
+  // menangani ini dengan baik (tidak menampilkan tanda "!" sama sekali
+  // alih-alih salah nandain SEMUA hari sebagai "belum ada"). Tradeoff yang
+  // layak: admin melihat halaman penuh dalam ~1 detik alih-alih menatap
+  // skeleton 10 detik hanya demi tanda seru kecil di day selector.
 
   return (
     // Trik menggunakan margin negatif (-mx-6 -my-6) untuk membatalkan padding
@@ -179,7 +161,6 @@ export default async function FacilitatorDetailPage({
               current={hari}
               basePath={`/fasilitator/${kode}`}
               todayHari={todayHari}
-              missingAnalysisDays={missingAnalysisDays}
             />
           )}
         </div>
@@ -196,6 +177,9 @@ export default async function FacilitatorDetailPage({
          * bervariasi (anomali/catatan/belum-diisi). */}
         <div className="grid min-h-0 grid-cols-1 gap-3 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_480px] lg:items-stretch">
           <FacilKendalaPanel row={currentRow} history={history} compliance={compliance} hari={hari} notes={notes} unfilled={unfilled} />
+          {/* Workbench langsung render INSTAN (zero skeleton) — existingAnalisis
+           * di-fetch CLIENT-SIDE oleh useEffect di dalam komponen ini lewat
+           * /api/analisis, jadi tidak ada blocking sama sekali di server. */}
           <FacilitatorAnalysisWorkbench
             key={`${kode}-${hari}-${mode}`}
             row={currentRow}
@@ -205,7 +189,7 @@ export default async function FacilitatorDetailPage({
             nextFacilitator={nextFacilitator}
             facilPosition={facilIndex >= 0 ? facilIndex + 1 : null}
             totalFacilitators={allFacilitators.length}
-            existingAnalisis={existingAnalisis}
+            existingAnalisis={null}
             configuredProviders={configuredProviderNames()}
           />
         </div>

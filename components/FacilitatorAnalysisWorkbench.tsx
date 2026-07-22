@@ -357,7 +357,8 @@ export function FacilitatorAnalysisWorkbench({
   facilPosition: number | null;
   totalFacilitators: number;
   /** Hasil Analisis yang SUDAH ADA di spreadsheet (tabel log harian) untuk
-   * hari ini - supaya tidak ketimpa string kosong waktu visit pertama. */
+   * hari ini — bisa null jika page.tsx merender tanpa Suspense (mode instan).
+   * Kalau null, komponen ini akan fetch sendiri via /api/analisis. */
   existingAnalisis: string | null;
   /** Daftar nama provider AI yang sudah punya konfigurasi global (via env var di server).
    * User tidak perlu memasukkan API key pribadi jika mereka memilih provider ini. */
@@ -400,6 +401,25 @@ export function FacilitatorAnalysisWorkbench({
       // Abaikan error parse
     }
   }, [configuredProviders]);
+
+  // Jika existingAnalisis null (page.tsx merender INSTAN tanpa Suspense),
+  // fetch teks analisis yang sudah ada di spreadsheet secara CLIENT-SIDE.
+  // Ini menghilangkan skeleton loading — workbench langsung tampil, textarea
+  // terisi begitu API merespons (~1-2 detik kemudian, tanpa blocking UI).
+  useEffect(() => {
+    if (existingAnalisis != null) return; // sudah dapat dari server
+    if (hasil.trim()) return; // sudah ada isian (dari generate / manual)
+    let cancelled = false;
+    fetch(`/api/analisis?kode=${encodeURIComponent(row.kodeFasil)}&hari=${hari}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && data.analisis && !hasil.trim()) {
+          setHasil(data.analisis);
+        }
+      })
+      .catch(() => {}); // gagal-lunak, textarea tetap kosong
+    return () => { cancelled = true; };
+  }, [existingAnalisis, row.kodeFasil, hari]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function saveConfig() {
     localStorage.setItem("uwu_ai_provider", aiProvider);

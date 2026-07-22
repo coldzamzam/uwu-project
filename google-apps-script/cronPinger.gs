@@ -84,6 +84,10 @@ function panggilVercelCron() {
     try {
       var whResponse = UrlFetchApp.fetch(WEBHOOK_URL, whOptions);
       Logger.log("Webhook response: " + whResponse.getContentText());
+      
+      // Hancurkan cache Vercel sesaat setelah nulis ke masterLog!
+      UrlFetchApp.fetch("https://uwu-project.vercel.app/api/revalidate");
+      Logger.log("Vercel Cache berhasil dihancurkan!");
     } catch (e) {
       Logger.log("Error kirim webhook: " + e.message);
     }

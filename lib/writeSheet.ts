@@ -32,53 +32,21 @@ function normalize(v: any) {
  * Cari tabel log harian di seluruh sheet.
  * Karena kita pakai REST API, kita ambil metadata sheet dulu lalu ambil valuesnya.
  */
-async function findLogTable(spreadsheetId: string, accessToken: string) {
-  // 1. Dapatkan daftar nama sheet
-  const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    next: { revalidate: 60 } // cache metadata sebentar
-  });
-  if (!metaRes.ok) {
-    // Body error Google BIASANYA sangat spesifik (mis. "API belum diaktifkan
-    // di project ..." vs "The caller does not have permission" - dua
-    // penyebab 403 yang solusinya beda total) - JANGAN cuma simpan kode
-    // HTTP-nya, itu tidak cukup buat didiagnosis.
-    const detail = await metaRes.text().catch(() => "");
-    let detailMsg = detail;
-    try {
-      detailMsg = JSON.parse(detail)?.error?.message ?? detail;
-    } catch {
-      // biarkan detailMsg = raw text kalau bukan JSON
-    }
-    throw new Error(`Gagal akses spreadsheet (HTTP ${metaRes.status}): ${detailMsg}`);
-  }
-  const metaData = await metaRes.json();
-  const allSheets: string[] = metaData.sheets?.map((s: any) => s.properties.title) || [];
-  
-  // OPTIMASI SUPER CEPAT:
-  // Daripada me-looping SEMUA tab (yang bisa memakan waktu 10-20 detik), 
-  // kita cukup mencari tab yang bernama "Log" atau "Isian" saja.
-  const targetSheets = allSheets.filter(s => s === "Log" || s === "Isian" || s.toLowerCase().includes("log"));
-
-  // 2. Fetch data HANYA dari tab target
-  for (const sheetName of (targetSheets.length > 0 ? targetSheets : allSheets)) {
+/** Helper: coba fetch satu tab dan cari header "Analisis" + "Hari Ke". */
+async function tryFetchTab(spreadsheetId: string, sheetName: string, accessToken: string) {
+  try {
     const range = encodeURIComponent(`${sheetName}!A1:Z500`);
-    const valRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?majorDimension=ROWS`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      // Sebelumnya 'no-store' - PALING lambat di seluruh alur baca fasilitator
-      // (round-trip ke Sheets API per tab, tanpa cache sama sekali), jadi tiap
-      // pindah fasilitator/hari SELALU nunggu ini dari nol. Cache 20 detik
-      // bikin prefetch + klik "Selanjutnya" berturut-turut kerasa instan -
-      // ditandai tag per-spreadsheet supaya begitu ada yang "Simpan"
-      // (pushAnalysisToSheet di bawah), cache-nya langsung dipaksa basi SAAT
-      // ITU JUGA (revalidateTag), BUKAN nunggu 20 detik - jadi tidak ada lagi
-      // risiko lihat hasil lama abis Simpan.
-      next: { revalidate: 20, tags: [analisisCacheTag(spreadsheetId)] },
-    });
-    if (!valRes.ok) continue;
-    const valData = await valRes.json();
-    const values = valData.values || [];
-    
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?majorDimension=ROWS`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        next: { revalidate: 20, tags: [analisisCacheTag(spreadsheetId)] },
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const values = data.values || [];
+
     for (let r = 0; r < values.length; r++) {
       let analisisCol = -1;
       let hariCol = -1;
@@ -91,8 +59,60 @@ async function findLogTable(spreadsheetId: string, accessToken: string) {
         return { sheetName, headerRow: r, hariCol, analisisCol, values };
       }
     }
+    return null;
+  } catch {
+    return null;
   }
-  return null;
+}
+
+async function findLogTable(spreadsheetId: string, accessToken: string) {
+  // === FASE 1: Tebak langsung tab "Log" dan "Isian" secara PARALEL ===
+  // Skip metadata fetch sama sekali — ini menghemat ~400ms latensi di
+  // Vercel karena tidak perlu round-trip ekstra ke Sheets API. Hampir
+  // seluruh fasilitator memakai nama tab standar, jadi ini hampir selalu
+  // berhasil di percobaan pertama.
+  const KNOWN_TABS = ["Log", "Isian"];
+  const knownResults = await Promise.all(
+    KNOWN_TABS.map((name) => tryFetchTab(spreadsheetId, name, accessToken))
+  );
+  const knownHit = knownResults.find((r) => r !== null);
+  if (knownHit) return knownHit;
+
+  // === FASE 2: Fallback — ambil metadata lalu cari di tab lain ===
+  // Hanya terjadi jika tab bukan "Log"/"Isian" (sangat jarang).
+  const metaRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      next: { revalidate: 60 },
+    }
+  );
+  if (!metaRes.ok) {
+    const detail = await metaRes.text().catch(() => "");
+    let detailMsg = detail;
+    try {
+      detailMsg = JSON.parse(detail)?.error?.message ?? detail;
+    } catch {
+      // biarkan detailMsg = raw text kalau bukan JSON
+    }
+    throw new Error(`Gagal akses spreadsheet (HTTP ${metaRes.status}): ${detailMsg}`);
+  }
+  const metaData = await metaRes.json();
+  const allSheets: string[] = metaData.sheets?.map((s: any) => s.properties.title) || [];
+
+  // Cari tab yang mengandung kata "log" (case-insensitive), kecuali yang
+  // sudah dicoba di Fase 1.
+  const remaining = allSheets.filter(
+    (s) => !KNOWN_TABS.includes(s) && s.toLowerCase().includes("log")
+  );
+  // Kalau tidak ada kandidat "log"-like, coba SEMUA tab yang tersisa.
+  const toTry = remaining.length > 0 ? remaining : allSheets.filter((s) => !KNOWN_TABS.includes(s));
+
+  // Coba semua kandidat secara PARALEL (bukan sequential).
+  const fallbackResults = await Promise.all(
+    toTry.map((name) => tryFetchTab(spreadsheetId, name, accessToken))
+  );
+  return fallbackResults.find((r) => r !== null) ?? null;
 }
 
 /** Seluruh isi kolom "Analisis" (hari -> teksnya, string kosong kalau
