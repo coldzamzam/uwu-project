@@ -337,7 +337,7 @@ export async function GET(request: Request) {
       await Promise.all(promises);
     }
 
-    await processWithConcurrency(roster, 10);
+    await processWithConcurrency(roster, 20);
 
     // Jika dipanggil via chunking oleh pinger GAS, kembalikan respons langsung
     if (offsetParam || limitParam) {

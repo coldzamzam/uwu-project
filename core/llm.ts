@@ -126,7 +126,7 @@ async function callGroq(messages: ChatMessage[], opts?: CallOpts, overrideApiKey
 
 async function callOpenRouter(messages: ChatMessage[], opts?: CallOpts, overrideApiKey?: string): Promise<ProviderResult> {
   const apiKey = overrideApiKey || process.env.OPENROUTER_API_KEY!;
-  const model = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free";
+  const model = process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash";
 
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
