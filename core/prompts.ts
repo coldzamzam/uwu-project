@@ -44,9 +44,9 @@ function formatRisk(row: FacilRow): string {
   return `${risk.value.toFixed(1)}%${risk.estimated ? " (estimasi)" : ""}`;
 }
 
-function buildHistoryTable(history: FacilRow[], maxDay: number, excludeAplikasi: boolean): string {
+function buildHistoryTable(history: FacilRow[], maxDay: number): string {
   const groups = activeCheckpoints(maxDay);
-  const cols = groups.flatMap((g) => g.indicators.filter((i) => !excludeAplikasi || i.sumberData !== "Aplikasi Revit").map((i) => i.kolom));
+  const cols = groups.flatMap((g) => g.indicators.map((i) => i.kolom));
   const uniqueCols = Array.from(new Set(cols));
 
   const header = ["Hari", "Nilai Risiko", ...uniqueCols].join(" | ");
@@ -89,8 +89,8 @@ function buildOverallDayDiff(dayRows: FacilRow[], prevDayRows: FacilRow[], hari:
   return lines.join("\n");
 }
 
-function visibleIndicatorsOf(entry: CheckpointCompliance, excludeAplikasi: boolean) {
-  return excludeAplikasi ? entry.indicators.filter((i) => i.sumberData !== "Aplikasi Revit") : entry.indicators;
+function visibleIndicatorsOf(entry: CheckpointCompliance) {
+  return entry.indicators;
 }
 
 /** Checkpoint yang jadi acuan "hari ini" - checkpoint yang PERSIS jatuh tempo
@@ -101,8 +101,8 @@ function visibleIndicatorsOf(entry: CheckpointCompliance, excludeAplikasi: boole
  * (untuk DIKECUALIKAN dari daftar "checkpoint lain" supaya checkpoint yang
  * sama tidak dilaporkan dua kali - sekali sebagai "checkpoint hari ini",
  * sekali lagi sebagai "checkpoint lain"). */
-function todayOrMostRecentCheckpoints(compliance: CheckpointCompliance[], maxDay: number, excludeAplikasi: boolean): CheckpointCompliance[] {
-  const isVisible = (c: CheckpointCompliance) => visibleIndicatorsOf(c, excludeAplikasi).length > 0;
+function todayOrMostRecentCheckpoints(compliance: CheckpointCompliance[], maxDay: number): CheckpointCompliance[] {
+  const isVisible = (c: CheckpointCompliance) => visibleIndicatorsOf(c).length > 0;
   const exact = compliance.filter((c) => c.group.activeFromDay === maxDay && isVisible(c));
   if (exact.length > 0) return exact;
 
@@ -128,10 +128,9 @@ function todayOrMostRecentCheckpoints(compliance: CheckpointCompliance[], maxDay
 function buildProblemCheckpoints(
   compliance: CheckpointCompliance[],
   maxDay: number,
-  excludeAplikasi: boolean,
   todayOrMostRecent: CheckpointCompliance[]
 ): { today: string; previous: string; previousItems: string[] } {
-  const visibleIndicators = (entry: CheckpointCompliance) => visibleIndicatorsOf(entry, excludeAplikasi);
+  const visibleIndicators = (entry: CheckpointCompliance) => visibleIndicatorsOf(entry);
   const todayOrMostRecentNos = new Set(todayOrMostRecent.map((c) => c.group.no));
 
   const formatEntry = (entry: CheckpointCompliance): string | null => {
@@ -315,7 +314,7 @@ function buildQualitativeNotes(history: FacilRow[]): string {
  */
 export function buildFacilitatorAnalysisMessages(
   history: FacilRow[],
-  options?: { excludeAplikasi?: boolean; anomalyFields?: Set<keyof FacilRow>; targetHari?: number }
+  options?: { anomalyFields?: Set<keyof FacilRow>; targetHari?: number }
 ): ChatMessage[] {
   if (history.length === 0) throw new Error("Tidak ada data histori untuk fasilitator ini.");
   const latest = history[history.length - 1];

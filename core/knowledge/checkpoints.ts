@@ -47,8 +47,7 @@ export const TOTAL_HARI_SIKLUS = 14;
  *   dengan tema yang sama diasumsikan mulai berlaku di hari yang sama) -
  *   belum ada info baru soal ini untuk skema "Skor Akhir".
  * - `sumberData` (LK Fasil vs Aplikasi Revit) di-reuse dari v1 per indikator
- *   yang temanya sama - dipakai supaya toggle "Kecualikan Data Aplikasi" di
- *   prompt LLM (packages/core/prompts.ts, TIDAK diubah) tetap akurat.
+ *   yang temanya sama.
  * - Checkpoint "Dapodik" berubah definisi dari v1 (dulu "F.1 Kesesuaian
  *   Dapodik dengan Lapangan = Belum & F.3 Belum Update", sekarang "Sudah
  *   Upload Bukti Update Dapodik" - kolom itu ADA di tabel baru, gating-nya
@@ -255,15 +254,11 @@ export function findIndicator(kolom: keyof FacilRow): { group: CheckpointGroup; 
 }
 
 /** Ringkasan knowledge base dalam bentuk teks, dibatasi hanya checkpoint yang
- * sudah relevan pada hari tsb - dipakai sebagai konteks system prompt LLM.
- * `excludeAplikasi` = true membuang seluruh indikator ber-sumber "Aplikasi
- * Revit" (dan checkpoint yang jadi kosong total setelahnya) - dipakai saat
- * admin cuma mau analisis berbasis catatan Kendala/LK Fasil, tanpa persentase
- * dari Aplikasi (mis. Dokumen Admin/Teknis) ikut jadi bahan kesimpulan. */
-export function buildKnowledgeSummary(uptoDay: number, excludeAplikasi = false): string {
+ * sudah relevan pada hari tsb - dipakai sebagai konteks system prompt LLM. */
+export function buildKnowledgeSummary(uptoDay: number): string {
   const lines: string[] = [];
   for (const group of activeCheckpoints(uptoDay)) {
-    const indicators = excludeAplikasi ? group.indicators.filter((i) => i.sumberData !== "Aplikasi Revit") : group.indicators;
+    const indicators = group.indicators;
     if (indicators.length === 0) continue;
     lines.push(`- [${group.name}] (aktif sejak Hari ${group.activeFromDay}, bobot risiko total ${group.bobotTotal}) - Tujuan: ${group.tujuan}`);
     for (const ind of indicators) {

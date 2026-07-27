@@ -345,6 +345,8 @@ export function FacilitatorAnalysisWorkbench({
   totalFacilitators,
   existingAnalisis,
   configuredProviders = [],
+  history,
+  dayLogs,
 }: {
   row: FacilRow;
   hari: number;
@@ -363,17 +365,25 @@ export function FacilitatorAnalysisWorkbench({
   /** Daftar nama provider AI yang sudah punya konfigurasi global (via env var di server).
    * User tidak perlu memasukkan API key pribadi jika mereka memilih provider ini. */
   configuredProviders?: string[];
+  history?: FacilRow[];
+  dayLogs?: { log1: FacilRow | null; log2: FacilRow | null } | null;
 }) {
   const [hasil, setHasil] = useState(existingAnalisis ?? fieldValue(row, "analisis"));
+  const [logSource, setLogSource] = useState<"log1" | "log2">(dayLogs?.log2 ? "log2" : "log1");
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "done" | "error">("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [excludeAplikasi, setExcludeAplikasi] = useState(false);
   const [copyState, setCopyState] = useState<"idle" | "copying" | "done" | "error">("idle");
   const [copyError, setCopyError] = useState<string | null>(null);
   const [copyAnalysisState, setCopyAnalysisState] = useState<"idle" | "copying" | "done" | "error">("idle");
   const [copyAnalysisError, setCopyAnalysisError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLogSource(dayLogs?.log2 ? "log2" : "log1");
+  }, [hari, dayLogs?.log1, dayLogs?.log2]);
+
+  const activeRow = logSource === "log1" ? (dayLogs?.log1 ?? row) : (dayLogs?.log2 ?? row);
 
   const [showConfig, setShowConfig] = useState(false);
   const [aiProvider, setAiProvider] = useState<string>("");
@@ -442,7 +452,8 @@ export function FacilitatorAnalysisWorkbench({
     setGenError(null);
     try {
       const basePayload = mode === "alltime" ? { kodeFasil: row.kodeFasil } : { kodeFasil: row.kodeFasil, hari };
-      const payload = { ...basePayload, excludeAplikasi, history, aiProvider, aiKey: aiKeys[aiProvider] || "" };
+      const modifiedHistory = history ? history.map((r) => (r.hari === hari ? activeRow : r)) : undefined;
+      const payload = { ...basePayload, history: modifiedHistory, aiProvider, aiKey: aiKeys[aiProvider] || "" };
       const res = await fetch("/api/analyze/facilitator", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -470,7 +481,7 @@ export function FacilitatorAnalysisWorkbench({
     setCopyState("copying");
     setCopyError(null);
     try {
-      const promptText = buildFacilitatorCopyPromptText(row, hari);
+      const promptText = buildFacilitatorCopyPromptText(activeRow, hari);
       await navigator.clipboard.writeText(promptText);
       setCopyState("done");
       setTimeout(() => setCopyState("idle"), 2000);
@@ -635,15 +646,41 @@ export function FacilitatorAnalysisWorkbench({
           <span className="text-xs font-bold text-red-500">Harap cek ulang hasil generate analisis, karena AI nya bisa ngawur cok!</span>
         </div>
 
-        <label className="flex items-center gap-2 text-xs text-ink-secondary" title='Buang seluruh checkpoint/persentase ber-sumber "Aplikasi Revit" (Login Aplikasi, Biodata, Dokumen Admin/Teknis, RAB) dari data yang dikirim ke AI - analisis jadi fokus ke checkpoint LK Fasil & catatan Kendala saja.'>
-          <input
-            type="checkbox"
-            checked={excludeAplikasi}
-            onChange={(e) => setExcludeAplikasi(e.target.checked)}
-            className="rounded border-border accent-series-1"
-          />
-          Kecualikan data Aplikasi (fokus ke Kendala &amp; LK Fasil saja)
-        </label>
+        <div className="flex flex-col gap-2.5 rounded-lg border border-gridline bg-background p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-ink-primary">Sumber Data Analisis:</span>
+              <div className="inline-flex rounded-md border border-border bg-surface text-xs font-medium">
+                <button
+                  type="button"
+                  onClick={() => setLogSource("log1")}
+                  disabled={!dayLogs?.log1 && !!dayLogs?.log2}
+                  className={`rounded px-2.5 py-1 transition-all ${
+                    logSource === "log1"
+                      ? "bg-series-1 text-white shadow-sm font-semibold"
+                      : "text-ink-secondary hover:text-ink-primary disabled:opacity-40"
+                  }`}
+                  title={!dayLogs?.log1 ? "Data Log 1 (07.00 WIB) kosong / belum tersedia" : "Gunakan data Log 1 Pagi (07.00 WIB)"}
+                >
+                  Log 1 (07.00 WIB) {!dayLogs?.log1 && !!dayLogs ? "🚫" : ""}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLogSource("log2")}
+                  disabled={!dayLogs?.log2 && !!dayLogs?.log1}
+                  className={`rounded px-2.5 py-1 transition-all ${
+                    logSource === "log2"
+                      ? "bg-series-1 text-white shadow-sm font-semibold"
+                      : "text-ink-secondary hover:text-ink-primary disabled:opacity-40"
+                  }`}
+                  title={!dayLogs?.log2 ? "Data Log 2 (13.30 WIB) kosong / belum tersedia" : "Gunakan data Log 2 Sore (13.30 WIB)"}
+                >
+                  Log 2 (13.30 WIB) {!dayLogs?.log2 && !!dayLogs ? "🚫" : ""}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <textarea
           id="hasil-analisis"

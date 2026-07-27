@@ -191,6 +191,8 @@ export default async function FacilitatorDetailPage({
             totalFacilitators={allFacilitators.length}
             existingAnalisis={null}
             configuredProviders={configuredProviderNames()}
+            history={history}
+            dayLogs={todayLogs}
           />
         </div>
 
