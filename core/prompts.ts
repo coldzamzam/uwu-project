@@ -421,14 +421,21 @@ Tolong tulis dalam format tiga bagian di bawah, TANPA label/judul di depan tiap 
 
 // --- Prompt untuk tombol "Copy Prompt" (paste manual ke Gemini Pro dkk.) --
 
-/** Total "semesta" tetap yang dipakai sebagai pembagi absolut - SELALU dipakai
- * apa adanya untuk SETIAP metrik terkait (unggah/verifikasi/sesuai), TIDAK
- * dirantai dari hasil metrik sebelumnya (mis. jumlah terverifikasi BUKAN
- * dihitung dari jumlah terunggah, keduanya independen dari total tetap ini) -
+/** Total sekolah dan dokumen dinamis per fasilitator berdasar kolom
+ * "Total Sekolah" dari sheet roster master (atau default 20 jika kosong).
+ * Proporsi: 6 dokumen teknis & 11 dokumen admin per sekolah.
+ * SELALU dipakai apa adanya untuk SETIAP metrik terkait (unggah/verifikasi/sesuai),
+ * TIDAK dirantai dari hasil metrik sebelumnya (mis. jumlah terverifikasi BUKAN
+ * dihitung dari jumlah terunggah, keduanya independen dari total ini) -
  * dikonfirmasi eksplisit oleh program owner 2026-07-18. */
-const TOTAL_SEKOLAH = 20;
-const TOTAL_DOK_TEKNIS = 120;
-const TOTAL_DOK_ADMIN = 220;
+function getFacilitatorTotals(row: FacilRow) {
+  const totalSekolah = row.totalSekolah && row.totalSekolah > 0 ? row.totalSekolah : 20;
+  return {
+    totalSekolah,
+    totalDokTeknis: totalSekolah * 6,
+    totalDokAdmin: totalSekolah * 11,
+  };
+}
 
 function numOrZero(v: FacilRow[keyof FacilRow]): number {
   return typeof v === "number" ? v : 0;
@@ -537,6 +544,7 @@ Dapodik: Seluruh sekolah yang data dapodiknya belum sesuai rincian menu yang dib
  * jangan sampai instruksinya beda).
  */
 function buildFacilNarrativeData(row: FacilRow, hari: number) {
+  const { totalSekolah, totalDokTeknis, totalDokAdmin } = getFacilitatorTotals(row);
   const compliance = getCheckpointCompliance(row, hari);
   const dueCheckpoints = activeCheckpoints(hari); // urut ascending activeFromDay
   const currentGroup = dueCheckpoints[dueCheckpoints.length - 1] ?? null; // checkpoint PALING BARU jatuh tempo
@@ -587,47 +595,47 @@ function buildFacilNarrativeData(row: FacilRow, hari: number) {
         }
       : "(belum ada checkpoint yang berlaku sampai hari ini)",
     sekolahLoginAplikasi: {
-      totalSekolah: TOTAL_SEKOLAH,
+      totalSekolah: totalSekolah,
       belumLoginPersen: numOrZero(row.pctSekolahBelumLoginAplikasi),
-      belumLoginJumlah: absFromPct(row.pctSekolahBelumLoginAplikasi, TOTAL_SEKOLAH),
+      belumLoginJumlah: absFromPct(row.pctSekolahBelumLoginAplikasi, totalSekolah),
       sudahLoginPersen: invertPct(row.pctSekolahBelumLoginAplikasi),
     },
     perencana: {
-      totalSekolah: TOTAL_SEKOLAH,
+      totalSekolah: totalSekolah,
       belumPunyaPersen: numOrZero(row.pctTidakPunyaPerencanaLK),
-      belumPunyaJumlah: absFromPct(row.pctTidakPunyaPerencanaLK, TOTAL_SEKOLAH),
+      belumPunyaJumlah: absFromPct(row.pctTidakPunyaPerencanaLK, totalSekolah),
       sudahPunyaPersen: invertPct(row.pctTidakPunyaPerencanaLK),
       kendala: kendalaTextOrEmpty(row.kendalaMendapatkanPerencana),
     },
     dokumenTeknis: {
-      totalDokumen: TOTAL_DOK_TEKNIS,
+      totalDokumen: totalDokTeknis,
       unggahPersen: numOrZero(row.rataDokTeknisTerunggah),
-      unggahJumlah: absFromPct(row.rataDokTeknisTerunggah, TOTAL_DOK_TEKNIS),
+      unggahJumlah: absFromPct(row.rataDokTeknisTerunggah, totalDokTeknis),
       unggahMinimalPersen: numOrZero(row.minDokTeknisTerunggah),
       kendalaUnggah: kendalaTextOrEmpty(row.kendalaPenyusunanDokTeknis),
       verifikasiPersen: numOrZero(row.rataDokTeknisTerverifikasi),
-      verifikasiJumlah: absFromPct(row.rataDokTeknisTerverifikasi, TOTAL_DOK_TEKNIS),
+      verifikasiJumlah: absFromPct(row.rataDokTeknisTerverifikasi, totalDokTeknis),
       kendalaVerifikasi: kendalaTextOrEmpty(row.kendalaVerifikasiDokTeknis),
       sesuaiPersen: numOrZero(row.rataDokTeknisSesuai),
-      sesuaiJumlah: absFromPct(row.rataDokTeknisSesuai, TOTAL_DOK_TEKNIS),
+      sesuaiJumlah: absFromPct(row.rataDokTeknisSesuai, totalDokTeknis),
     },
     dokumenAdmin: {
-      totalDokumen: TOTAL_DOK_ADMIN,
+      totalDokumen: totalDokAdmin,
       unggahPersen: numOrZero(row.rataDokAdminTerunggah),
-      unggahJumlah: absFromPct(row.rataDokAdminTerunggah, TOTAL_DOK_ADMIN),
+      unggahJumlah: absFromPct(row.rataDokAdminTerunggah, totalDokAdmin),
       unggahMinimalPersen: numOrZero(row.minDokAdminTerunggah),
       kendalaUnggah: kendalaTextOrEmpty(row.kendalaPenyusunanDokAdmin),
       verifikasiPersen: numOrZero(row.rataDokAdminTerverifikasi),
-      verifikasiJumlah: absFromPct(row.rataDokAdminTerverifikasi, TOTAL_DOK_ADMIN),
+      verifikasiJumlah: absFromPct(row.rataDokAdminTerverifikasi, totalDokAdmin),
       kendalaVerifikasi: kendalaTextOrEmpty(row.kendalaVerifikasiDokAdmin),
       sesuaiPersen: numOrZero(row.rataDokAdminSesuai),
-      sesuaiJumlah: absFromPct(row.rataDokAdminSesuai, TOTAL_DOK_ADMIN),
+      sesuaiJumlah: absFromPct(row.rataDokAdminSesuai, totalDokAdmin),
     },
     catatanLain: {
       biodata: {
-        totalSekolah: TOTAL_SEKOLAH,
+        totalSekolah: totalSekolah,
         belumTerverifikasiPersen: numOrZero(row.pctBiodataBelumTerverifikasi),
-        belumTerverifikasiJumlah: absFromPct(row.pctBiodataBelumTerverifikasi, TOTAL_SEKOLAH),
+        belumTerverifikasiJumlah: absFromPct(row.pctBiodataBelumTerverifikasi, totalSekolah),
         sudahTerverifikasiPersen: invertPct(row.pctBiodataBelumTerverifikasi),
         kendala: kendalaTextOrEmpty(row.kendalaVerifikasiBiodata),
       },

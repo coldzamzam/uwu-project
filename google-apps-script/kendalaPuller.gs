@@ -35,7 +35,7 @@ const MASTER_CONFIG = {
   DATA_START_ROW: 2, // baris 1 = header, data mulai baris 2
 
   // Nomor kolom sesuai urutan header yang Anda kasih:
-  // No, Code Name, Atmin, Kode Fasil, Nama Fasil, LK Log, LK Fasilitator, ...10 kendala...
+  // No, Code Name, Atmin, Kode Fasil, Nama Fasil, LK Log, LK Fasilitator, Total Sekolah, ...10 kendala...
   COL_NO: 1,               // A
   COL_CODE_NAME: 2,         // B
   COL_ATMIN: 3,              // C
@@ -43,10 +43,11 @@ const MASTER_CONFIG = {
   COL_NAMA_FASIL: 5,         // E
   COL_LK_LOG: 6,             // F
   COL_LK_FASILITATOR: 7,     // G -- sumber link yang di-scraping
-  COL_JUMLAH_MUNDUR: 8,       // H -- hasil hitung jumlah sekolah mengundurkan diri
-  COL_KENDALA_START: 9,        // I -- kolom kendala pertama (Kendala Komunikasi)
+  COL_TOTAL_SEKOLAH: 8,      // H -- hasil hitung total sekolah unik (NPSN) di LK fasilitator
+  COL_JUMLAH_MUNDUR: 9,       // I -- hasil hitung jumlah sekolah mengundurkan diri
+  COL_KENDALA_START: 10,        // J -- kolom kendala pertama (Kendala Komunikasi)
   // Kendala terakhir (Kendala Penyepakatan RAB) otomatis di kolom
-  // COL_KENDALA_START + 9 = Q, karena ada 10 kolom kendala.
+  // COL_KENDALA_START + 9 = S, karena ada 10 kolom kendala.
 
   // Batas waktu per-batch (safety margin dari limit 6 menit Apps Script)
   BATCH_TIME_BUDGET_MS: 4.5 * 60 * 1000,
@@ -209,6 +210,13 @@ function masterProcessBatchInner_() {
     try {
       const result = masterReadFasilitatorData_(url);
 
+      if (!result.totalSchoolsRoster || result.totalSchoolsRoster <= 0) {
+        logRows.push([runTime, currentRow, namaFasil, '-', '-', 'PERINGATAN: Total Sekolah 0 atau null di LK Fasil, pengisian ke master data dilewati']);
+        processedCount++;
+        continue;
+      }
+
+      sheet.getRange(currentRow, MASTER_CONFIG.COL_TOTAL_SEKOLAH).setValue(result.totalSchoolsRoster);
       sheet.getRange(currentRow, MASTER_CONFIG.COL_JUMLAH_MUNDUR).setValue(result.jumlahMundur);
 
       const rowValues = MASTER_COLUMN_MAP.map(function (m) { return result.activeValue[m.label] || ''; });

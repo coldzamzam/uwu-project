@@ -63,6 +63,7 @@ export interface RosterEntry {
   namaFasil: string;
   kendala: Partial<Record<keyof FacilRow, string>>;
   urlLK: string;
+  totalSekolah: number;
 }
 
 let rosterCache: { at: number; entries: RosterEntry[] } | null = null;
@@ -102,7 +103,9 @@ export async function getRosterEntries(): Promise<RosterEntry[]> {
         }
         
         const urlLK = (row["LK_LOG"] ?? row["LK Log"] ?? row["URL LK"] ?? row["Link LK"] ?? row["LK_Log"] ?? "").trim();
-        entries.push({ atmin: (row["Atmin"] ?? "").trim(), kodeFasil, namaFasil, kendala, urlLK });
+        const rawTotalSekolah = parseInt((row["Total Sekolah"] ?? row["Total_Sekolah"] ?? "").trim(), 10);
+        const totalSekolah = !isNaN(rawTotalSekolah) && rawTotalSekolah > 0 ? rawTotalSekolah : 20;
+        entries.push({ atmin: (row["Atmin"] ?? "").trim(), kodeFasil, namaFasil, kendala, urlLK, totalSekolah });
       }
 
       rosterCache = { at: Date.now(), entries };
@@ -252,6 +255,7 @@ function blankFacilRow(): FacilRow {
     kendalaVerifikasiDokTeknis: null,
     kendalaPenyepakatanRAB: null,
     jumlahSekolahMengundurkanDiri: null,
+    totalSekolah: 20,
     analisis: null,
     catatanAdmin: null,
     skorAkhir: null,
@@ -272,6 +276,7 @@ export function buildFacilRowFromMasterLog(parsed: ParsedMasterLogRow, roster: R
   row.hariLabel = `Hari ${parsed.hari}`;
   row.kodeFasil = roster?.kodeFasil ?? "";
   row.namaFasil = parsed.namaFasil;
+  row.totalSekolah = roster?.totalSekolah ?? 20;
 
   // 26 kolom masterLog adalah FRAKSI 0-1 (mis. "0.95" = 95%) - beda dari tab
   // "Isian"/"Log" lama yang sudah "xx.xx%". Dikonversi ke skala 0-100 dulu

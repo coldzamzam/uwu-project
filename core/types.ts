@@ -63,6 +63,7 @@ export interface FacilRow {
   kendalaVerifikasiDokTeknis: CellValue;
   kendalaPenyepakatanRAB: CellValue;
   jumlahSekolahMengundurkanDiri: CellValue;
+  totalSekolah?: number;
   analisis: CellValue;
   catatanAdmin: CellValue;
 
