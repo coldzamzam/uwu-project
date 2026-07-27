@@ -129,7 +129,7 @@ export async function GET(request: Request) {
           let attempt = 0;
           let success = false;
 
-          while (attempt < 3 && !success) {
+          while (attempt < 2 && !success) {
             attempt++;
             try {
               const sid = extractSpreadsheetId(targetUrl);
@@ -137,7 +137,7 @@ export async function GET(request: Request) {
 
               const url = gvizCsvUrl(sid, CONFIG.FASIL_SHEET_NAME) + `&t=${Date.now()}`;
               const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 25000);
+              const timeoutId = setTimeout(() => controller.abort(), 7000);
 
               let res;
               try {
@@ -312,7 +312,7 @@ export async function GET(request: Request) {
               successCount++;
               success = true;
             } catch (err: any) {
-              if (attempt === 3) {
+              if (attempt === 2) {
                 errorCount++;
                 payloadRows[currentIndex] = {
                   kodeFasil: entry.kodeFasil,
@@ -321,10 +321,10 @@ export async function GET(request: Request) {
                   jumlahMundur: 0,
                   kendala: Array(10).fill(""),
                   skip: true,
-                  reason: `Error fetch 3x: ${err.message}`,
+                  reason: `Error fetch 2x: ${err?.message || err}`,
                 };
               } else {
-                await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+                await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
               }
             }
           }

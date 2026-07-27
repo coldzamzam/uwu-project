@@ -4,49 +4,36 @@
  * =====================================================================
  * Script ini bertugas sebagai "mesin pengetuk pintu" Vercel secara bergilir
  * setiap 5 menit untuk menarik DUA jenis data sekaligus:
- * 1. Data Log Hari & Skor Akhir (/api/cron/sync-logs)
- * 2. Data Kendala Kualitatif & Total Sekolah (/api/cron/sync-kendala)
- *
- * CARA PAKAI:
- * 1. Taruh file ini di Google Apps Script (misal: cronPinger.gs)
- * 2. Masuk ke menu Pemicu (Triggers) logo jam alarm di kiri.
- * 3. Buat pemicu baru:
- *    - Fungsi: panggilVercelCron
- *    - Sumber acara: Berdasarkan waktu (Time-driven)
- *    - Tipe: Menit (Minutes timer)
- *    - Interval: Setiap 5 menit (Every 5 minutes)
- * 4. Simpan. Selesai!
+ * 1. Data Log Hari & Skor Akhir (/api/cron/sync-logs) - chunk 75 fasil
+ * 2. Data Kendala Kualitatif & Total Sekolah (/api/cron/sync-kendala) - chunk 25 fasil (lebih ringan agar bebas timeout)
  * =====================================================================
  */
 
 function panggilVercelCron() {
-  // BASE DOMAIN VERCEL
   var BASE_URL = "https://uwu-project.vercel.app";
   var CRON_SECRET = "RahasiaVercelCron123!";
   
-  // WEBHOOK SYNC RECEIVER (dari deployment Apps Script Receiver Anda)
   var WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxLZq5DyJ01HJFv9Sv1SW7Rl6JEq9xTo93-7-eD5s4qG7qgByfebl-JY-D7ZXmrMT1o/exec";
   var WEBHOOK_SECRET = "UwU_Rahasia_123!";
   
   var totalFasilitator = 390;
-  var chunkSize = 75; // Ambil 75 fasil per panggilan (menghindari timeout Vercel)
   var anyDataUpdated = false;
   
   // =====================================================================
-  // TAHAP 1: SINKRONISASI LOG (sync-logs)
+  // TAHAP 1: SINKRONISASI LOG (sync-logs) - Chunk Size 75
   // =====================================================================
   Logger.log("==================================================");
   Logger.log("MEMULAI TAHAP 1: SINKRONISASI LOG HARI");
   Logger.log("==================================================");
   
+  var chunkSizeLog = 75;
   var allLogRows = [];
   var hariKe = 0;
   var logNumber = 0;
-  var totalBerhasilLog = 0;
   var skipLogs = false;
   
-  for (var offset = 0; offset < totalFasilitator; offset += chunkSize) {
-    var fetchUrlLog = BASE_URL + "/api/cron/sync-logs?offset=" + offset + "&limit=" + chunkSize;
+  for (var offset = 0; offset < totalFasilitator; offset += chunkSizeLog) {
+    var fetchUrlLog = BASE_URL + "/api/cron/sync-logs?offset=" + offset + "&limit=" + chunkSizeLog;
     var options = {
       method: "get",
       headers: { "Authorization": "Bearer " + CRON_SECRET },
@@ -57,26 +44,37 @@ function panggilVercelCron() {
       Logger.log("[Logs] Mengambil chunk offset " + offset + "...");
       var responseLog = UrlFetchApp.fetch(fetchUrlLog, options);
       var codeLog = responseLog.getResponseCode();
-      var jsonLog = JSON.parse(responseLog.getContentText());
+      var contentLog = responseLog.getContentText();
       
-      if (codeLog === 200 && jsonLog.rows) {
+      if (codeLog !== 200) {
+        Logger.log("[Logs] HTTP Error " + codeLog + " di offset " + offset + ": " + contentLog.substring(0, 100));
+        continue;
+      }
+
+      var jsonLog;
+      try {
+        jsonLog = JSON.parse(contentLog);
+      } catch (errJson) {
+        Logger.log("[Logs] Gagal parse JSON di offset " + offset + ": " + contentLog.substring(0, 100));
+        continue;
+      }
+      
+      if (jsonLog.status === "skip") {
+        Logger.log("[Logs] Skip dari server: " + jsonLog.message);
+        skipLogs = true;
+        break;
+      }
+      
+      if (jsonLog.rows) {
         allLogRows = allLogRows.concat(jsonLog.rows);
         hariKe = jsonLog.hariKe;
         logNumber = jsonLog.logNumber;
-        totalBerhasilLog += jsonLog.berhasilTarik || 0;
-      } else {
-        Logger.log("[Logs] Skip/Info: " + responseLog.getContentText());
-        if (jsonLog.status === "skip") {
-          skipLogs = true;
-          break;
-        }
       }
     } catch (e) {
       Logger.log("[Logs] Error fetch Vercel chunk " + offset + ": " + e.message);
     }
   }
   
-  // Kirim hasil logs ke Webhook jika ada
   if (!skipLogs && allLogRows.length > 0 && hariKe && logNumber) {
     Logger.log("[Logs] Berhasil mengumpulkan " + allLogRows.length + " baris. Mengirim ke Webhook...");
     var whLogOptions = {
@@ -102,17 +100,18 @@ function panggilVercelCron() {
   }
   
   // =====================================================================
-  // TAHAP 2: SINKRONISASI KENDALA & TOTAL SEKOLAH (sync-kendala)
+  // TAHAP 2: SINKRONISASI KENDALA & TOTAL SEKOLAH (sync-kendala) - Chunk Size 25
   // =====================================================================
   Logger.log("==================================================");
   Logger.log("MEMULAI TAHAP 2: SINKRONISASI KENDALA & TOTAL SEKOLAH");
   Logger.log("==================================================");
   
+  // Gunakan chunkSize 25 untuk kendala karena membaca tab "Isi Disini" jauh lebih besar daripada tab "Log"
+  var chunkSizeKendala = 25;
   var allKendalaRows = [];
-  var totalBerhasilKendala = 0;
   
-  for (var offsetK = 0; offsetK < totalFasilitator; offsetK += chunkSize) {
-    var fetchUrlKendala = BASE_URL + "/api/cron/sync-kendala?offset=" + offsetK + "&limit=" + chunkSize;
+  for (var offsetK = 0; offsetK < totalFasilitator; offsetK += chunkSizeKendala) {
+    var fetchUrlKendala = BASE_URL + "/api/cron/sync-kendala?offset=" + offsetK + "&limit=" + chunkSizeKendala;
     var optionsK = {
       method: "get",
       headers: { "Authorization": "Bearer " + CRON_SECRET },
@@ -120,25 +119,34 @@ function panggilVercelCron() {
     };
     
     try {
-      Logger.log("[Kendala] Mengambil chunk offset " + offsetK + "...");
+      Logger.log("[Kendala] Mengambil chunk offset " + offsetK + " (limit " + chunkSizeKendala + ")...");
       var responseKendala = UrlFetchApp.fetch(fetchUrlKendala, optionsK);
       var codeKendala = responseKendala.getResponseCode();
-      var jsonKendala = JSON.parse(responseKendala.getContentText());
+      var contentKendala = responseKendala.getContentText();
       
-      if (codeKendala === 200 && jsonKendala.rows) {
-        // Hanya kumpulkan baris yang TIDAK di-skip (totalSekolah > 0)
+      if (codeKendala !== 200) {
+        Logger.log("[Kendala] HTTP Error " + codeKendala + " di offset " + offsetK + ": " + contentKendala.substring(0, 100));
+        continue;
+      }
+
+      var jsonKendala;
+      try {
+        jsonKendala = JSON.parse(contentKendala);
+      } catch (errJsonK) {
+        Logger.log("[Kendala] Respons bukan JSON valid (kemungkinan Vercel Timeout) di offset " + offsetK + ": " + contentKendala.substring(0, 100));
+        continue;
+      }
+      
+      if (jsonKendala.rows) {
+        // Hanya kumpulkan baris yang TIDAK di-skip (totalSekolah > 0 dan valid)
         var validRows = jsonKendala.rows.filter(function(r) { return r && !r.skip; });
         allKendalaRows = allKendalaRows.concat(validRows);
-        totalBerhasilKendala += jsonKendala.berhasilTarik || 0;
-      } else {
-        Logger.log("[Kendala] Skip/Error: " + responseKendala.getContentText());
       }
     } catch (e) {
       Logger.log("[Kendala] Error fetch Vercel chunk " + offsetK + ": " + e.message);
     }
   }
   
-  // Kirim hasil kendala ke Webhook jika ada baris valid
   if (allKendalaRows.length > 0) {
     Logger.log("[Kendala] Berhasil mengumpulkan " + allKendalaRows.length + " baris valid (tanpa 0/null). Mengirim ke Webhook...");
     var whKendalaOptions = {
