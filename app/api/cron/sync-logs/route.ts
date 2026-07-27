@@ -177,6 +177,7 @@ export async function GET(request: Request) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         secret: webhookSecret,
+        type: "logs",
         hariKe,
         logNumber,
         rows: payloadRows

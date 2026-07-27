@@ -10,21 +10,107 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+    // =====================================================================
+    // PERCABANGAN 1: PENAMPUNG DATA KENDALA & TOTAL SEKOLAH (sync-kendala)
+    // =====================================================================
+    if (payload.type === "kendala") {
+      const rows = payload.rows;
+      if (!rows || !Array.isArray(rows) || rows.length === 0) {
+        return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Tidak ada baris kendala untuk diproses" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      // Cari tab master (bisa bernama "Daftar Fasilitator" atau "Fasilitator")
+      const targetSheet = ss.getSheetByName("Daftar Fasilitator") || ss.getSheetByName("Fasilitator");
+      if (!targetSheet) {
+        return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Sheet Daftar Fasilitator / Fasilitator tidak ditemukan" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      const lastRow = targetSheet.getLastRow();
+      if (lastRow < 2) {
+        return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Data fasilitator di master sheet kosong" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      const numRows = lastRow - 1; // Mulai dari baris 2 (baris 1 header)
+      
+      // Ambil kolom A s.d. S (19 kolom) untuk pencocokan Kode Fasil (Kolom D) dan Nama Fasil (Kolom E)
+      const allValues = targetSheet.getRange(2, 1, numRows, Math.max(targetSheet.getLastColumn(), 19)).getValues();
+      
+      // Blok yang akan di-update adalah Kolom H (Index 7) s.d. S (Index 18) = 12 kolom
+      // [Total Sekolah, Jumlah Mundur, 10 Kolom Kendala]
+      const updateBlock = targetSheet.getRange(2, 8, numRows, 12).getValues();
+
+      // Buat pemetaan index baris berdasarkan Kode Fasil & Nama Fasil
+      const rowMap = {};
+      for (let i = 0; i < allValues.length; i++) {
+        const kf = String(allValues[i][3] || "").trim(); // Kolom D (Index 3) = Kode Fasil
+        const nf = String(allValues[i][4] || "").trim(); // Kolom E (Index 4) = Nama Fasil
+        if (kf) rowMap[kf] = i;
+        if (nf) rowMap[nf] = i;
+      }
+
+      let updatedCount = 0;
+      let skippedCount = 0;
+
+      for (let j = 0; j < rows.length; j++) {
+        const item = rows[j];
+        if (!item) continue;
+
+        // GUARD: Jika skip === true, atau totalSekolah adalah 0 atau null, JANGAN update ke sheet master
+        if (item.skip || !item.totalSekolah || Number(item.totalSekolah) <= 0) {
+          skippedCount++;
+          continue;
+        }
+
+        let targetIdx = -1;
+        if (item.kodeFasil && rowMap[String(item.kodeFasil).trim()] !== undefined) {
+          targetIdx = rowMap[String(item.kodeFasil).trim()];
+        } else if (item.namaFasil && rowMap[String(item.namaFasil).trim()] !== undefined) {
+          targetIdx = rowMap[String(item.namaFasil).trim()];
+        }
+
+        if (targetIdx !== -1) {
+          updateBlock[targetIdx][0] = Number(item.totalSekolah);
+          updateBlock[targetIdx][1] = Number(item.jumlahMundur || 0);
+          const kArr = item.kendala || [];
+          for (let k = 0; k < 10; k++) {
+            updateBlock[targetIdx][2 + k] = kArr[k] !== undefined ? String(kArr[k]) : "";
+          }
+          updatedCount++;
+        }
+      }
+
+      // Tulis ulang blok dalam 1 kali pemanggilan API (Sangat Cepat & Efisien!)
+      if (updatedCount > 0) {
+        targetSheet.getRange(2, 8, numRows, 12).setValues(updateBlock);
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: `Berhasil update ${updatedCount} baris kendala & total sekolah. Dilewati (skip/0): ${skippedCount}`
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // =====================================================================
+    // PERCABANGAN 2: PENAMPUNG DATA LOG HARI (sync-logs / Default)
+    // =====================================================================
     const { hariKe, logNumber, rows } = payload;
     if (!hariKe || !logNumber || !rows || !rows.length) {
-      return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Invalid payload" }))
+      return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Invalid payload untuk sync-logs" }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
     const mlogSheet = ss.getSheetByName("masterLog");
     if (!mlogSheet) {
       return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Sheet masterLog tidak ditemukan" }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    // 2. Cari blok baris yang sudah ada untuk (Hari, Log) ini
-    // Kita cari baris pertama yang cocok
+    // Cari blok baris yang sudah ada untuk (Hari, Log) ini
     const data = mlogSheet.getDataRange().getValues();
     let startRow = -1;
 
@@ -38,18 +124,18 @@ function doPost(e) {
       }
     }
 
-    // 3. Tentukan posisi Paste
+    // Tentukan posisi Paste
     if (startRow === -1) {
-      // Jika belum ada, buat blok baru di paling bawah
       startRow = Math.max(mlogSheet.getLastRow() + 1, 3);
     }
 
-    // 4. Paste 390 baris sekaligus dalam 1 milidetik! (Sangat Cepat)
-    // payload.rows berukuran [390][31] (390 baris, 31 kolom)
+    // Paste baris sekaligus
     mlogSheet.getRange(startRow, 1, rows.length, rows[0].length).setValues(rows);
 
-    return ContentService.createTextOutput(JSON.stringify({ status: "success", message: `Berhasil menulis ${rows.length} baris di baris ke-${startRow}` }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "success",
+      message: `Berhasil menulis ${rows.length} baris log di baris ke-${startRow}`
+    })).setMimeType(ContentService.MimeType.JSON);
 
   } catch (error) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: error.message }))
@@ -60,18 +146,6 @@ function doPost(e) {
 /**
  * ================================================================
  * FUNGSI PEMBERSIHAN SATU KALI (One-Time Cleanup)
- * ================================================================
- * Jalankan fungsi ini SATU KALI dari menu Apps Script untuk
- * membersihkan semua duplikat di masterLog.
- *
- * Logika: Untuk setiap kombinasi (Hari, Log, Nama Fasil),
- * hanya BARIS TERAKHIR (paling bawah) yang dipertahankan.
- * Semua baris duplikat di atasnya akan dihapus.
- *
- * CARA PAKAI:
- * 1. Buka Apps Script Editor
- * 2. Pilih fungsi "cleanupMasterLogDuplicates" dari dropdown
- * 3. Klik Run ▶
  * ================================================================
  */
 function cleanupMasterLogDuplicates() {
@@ -85,19 +159,17 @@ function cleanupMasterLogDuplicates() {
   const data = sheet.getDataRange().getValues();
   Logger.log("Total baris di masterLog: " + data.length);
 
-  // Pass 1: Untuk setiap (Hari, Log, NamaFasil), catat baris TERAKHIR (paling bawah)
-  const lastSeen = {}; // key → index baris terakhir (0-based)
-  for (let i = 2; i < data.length; i++) { // skip baris 1-2 (header)
+  const lastSeen = {};
+  for (let i = 2; i < data.length; i++) {
     const namaFasil = (data[i][3] || "").toString().trim();
     const hari = data[i][2];
     const log  = data[i][1];
     if (!namaFasil || !hari) continue;
     const key = hari + "|" + log + "|" + namaFasil;
-    lastSeen[key] = i; // yang terakhir ditemukan = yang paling bawah
+    lastSeen[key] = i;
   }
 
-  // Pass 2: Tandai baris-baris yang BUKAN baris terakhir → hapus
-  const rowsToDelete = []; // kumpulkan index (0-based)
+  const rowsToDelete = [];
   const seen = {};
   for (let i = 2; i < data.length; i++) {
     const namaFasil = (data[i][3] || "").toString().trim();
@@ -106,18 +178,12 @@ function cleanupMasterLogDuplicates() {
     if (!namaFasil || !hari) continue;
     const key = hari + "|" + log + "|" + namaFasil;
 
-    if (seen[key]) {
-      // Sudah pernah ketemu → ini duplikat. Tapi apakah ini yg terakhir?
-      // Kita simpan yang terakhir (lastSeen), hapus sisanya
+    if (seen[key] || i !== lastSeen[key]) {
       if (i !== lastSeen[key]) {
         rowsToDelete.push(i);
       }
     } else {
       seen[key] = true;
-      // Kalau ini bukan baris terakhir untuk key ini, tandai untuk dihapus
-      if (i !== lastSeen[key]) {
-        rowsToDelete.push(i);
-      }
     }
   }
 
@@ -129,10 +195,9 @@ function cleanupMasterLogDuplicates() {
     return;
   }
 
-  // Pass 3: Hapus dari BAWAH ke ATAS agar index tidak bergeser
-  rowsToDelete.sort(function(a, b) { return b - a; }); // descending
+  rowsToDelete.sort(function(a, b) { return b - a; });
   for (let j = 0; j < rowsToDelete.length; j++) {
-    sheet.deleteRow(rowsToDelete[j] + 1); // +1 karena Sheets 1-based
+    sheet.deleteRow(rowsToDelete[j] + 1);
   }
 
   Logger.log("Selesai! " + rowsToDelete.length + " baris duplikat dihapus.");

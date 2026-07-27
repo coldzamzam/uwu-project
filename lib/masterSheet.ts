@@ -63,6 +63,7 @@ export interface RosterEntry {
   namaFasil: string;
   kendala: Partial<Record<keyof FacilRow, string>>;
   urlLK: string;
+  urlLKFasil?: string;
   totalSekolah: number;
 }
 
@@ -103,9 +104,10 @@ export async function getRosterEntries(): Promise<RosterEntry[]> {
         }
         
         const urlLK = (row["LK_LOG"] ?? row["LK Log"] ?? row["URL LK"] ?? row["Link LK"] ?? row["LK_Log"] ?? "").trim();
+        const urlLKFasil = (row["LK Fasilitator"] ?? row["LK_Fasilitator"] ?? row["URL LK Fasil"] ?? row["Link LK Fasil"] ?? "").trim();
         const rawTotalSekolah = parseInt((row["Total Sekolah"] ?? row["Total_Sekolah"] ?? "").trim(), 10);
         const totalSekolah = !isNaN(rawTotalSekolah) && rawTotalSekolah > 0 ? rawTotalSekolah : 20;
-        entries.push({ atmin: (row["Atmin"] ?? "").trim(), kodeFasil, namaFasil, kendala, urlLK, totalSekolah });
+        entries.push({ atmin: (row["Atmin"] ?? "").trim(), kodeFasil, namaFasil, kendala, urlLK, urlLKFasil, totalSekolah });
       }
 
       rosterCache = { at: Date.now(), entries };
