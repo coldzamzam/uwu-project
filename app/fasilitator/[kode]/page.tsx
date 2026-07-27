@@ -103,8 +103,8 @@ export default async function FacilitatorDetailPage({
     // bawaan dari <main> di layout.tsx. Ini menghindari penggunaan w-screen
     // yang sering menyebabkan scrollbar horizontal yang mengganggu, sekaligus
     // menjaga konten tetap memenuhi max-width 1600px.
-    <div className="-mx-6 -my-6 px-4 py-3 sm:px-6 lg:h-[calc(100vh-53px)] lg:px-8 lg:py-3">
-      <div className="flex h-full flex-col gap-3">
+    <div className="-mx-6 -my-6 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="flex flex-col gap-6">
       {anomalies.length > 0 && (
         <a
           href="#anomali-terdeteksi"
@@ -166,38 +166,33 @@ export default async function FacilitatorDetailPage({
         </div>
       </div>
 
-      <div className="shrink-0 lg:max-h-[38vh] lg:overflow-y-auto">
+      <div>
         <TodayLogPanel hari={hari} todayHari={todayHari} logs={todayLogs} />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
-        {/* Baris 2 kartu utama - dipisah dari kendala historis di bawah supaya
-         * items-stretch bisa menyamakan tinggi PERSIS antara kartu Kendala &
-         * kartu Analisis, tanpa terganggu konten tambahan yang panjangnya
-         * bervariasi (anomali/catatan/belum-diisi). */}
-        <div className="grid min-h-0 grid-cols-1 gap-3 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_480px] lg:items-stretch">
+      <div className="flex flex-col gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_480px] lg:items-start">
           <FacilKendalaPanel row={currentRow} history={history} compliance={compliance} hari={hari} notes={notes} unfilled={unfilled} />
-          {/* Workbench langsung render INSTAN (zero skeleton) — existingAnalisis
-           * di-fetch CLIENT-SIDE oleh useEffect di dalam komponen ini lewat
-           * /api/analisis, jadi tidak ada blocking sama sekali di server. */}
-          <FacilitatorAnalysisWorkbench
-            key={`${kode}-${hari}-${mode}`}
-            row={currentRow}
-            hari={hari}
-            mode={mode}
-            prevFacilitator={prevFacilitator}
-            nextFacilitator={nextFacilitator}
-            facilPosition={facilIndex >= 0 ? facilIndex + 1 : null}
-            totalFacilitators={allFacilitators.length}
-            existingAnalisis={null}
-            configuredProviders={configuredProviderNames()}
-            history={history}
-            dayLogs={todayLogs}
-          />
+          <div className="lg:sticky lg:top-6">
+            <FacilitatorAnalysisWorkbench
+              key={`${kode}-${hari}-${mode}`}
+              row={currentRow}
+              hari={hari}
+              mode={mode}
+              prevFacilitator={prevFacilitator}
+              nextFacilitator={nextFacilitator}
+              facilPosition={facilIndex >= 0 ? facilIndex + 1 : null}
+              totalFacilitators={allFacilitators.length}
+              existingAnalisis={null}
+              configuredProviders={configuredProviderNames()}
+              history={history}
+              dayLogs={todayLogs}
+            />
+          </div>
         </div>
 
         {anomalies.length > 0 && (
-          <div className="shrink-0 lg:max-h-[22vh] lg:overflow-y-auto">
+          <div>
             <div id="anomali-terdeteksi" className="mb-2">
               <h2 className="mb-2 text-sm font-semibold text-ink-primary">Anomali Terdeteksi</h2>
               <AnomalyList items={anomalies} />

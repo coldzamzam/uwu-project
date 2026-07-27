@@ -264,7 +264,7 @@ export function FacilKendalaPanel({
   const mengundurkanDiriCount = typeof mengundurkanDiriRaw === "string" ? parseInt(mengundurkanDiriRaw, 10) : typeof mengundurkanDiriRaw === "number" ? mengundurkanDiriRaw : 0;
 
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-surface shadow-sm">
+    <div className="flex flex-col rounded-xl border border-border bg-surface shadow-sm">
       <div className="flex shrink-0 flex-col gap-2 border-b border-gridline px-4 py-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-ink-primary">Catatan Kendala Fasil (Hari ke-{hari})</h3>
@@ -280,7 +280,7 @@ export function FacilKendalaPanel({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="p-2.5">
         <div className="grid grid-cols-2 auto-rows-fr gap-2 2xl:grid-cols-3">
           {renderField(firstField)}
           <FacilDocumentFunnel row={row} kategori="Admin" />
@@ -540,7 +540,7 @@ export function FacilitatorAnalysisWorkbench({
   }
 
   return (
-    <div className="flex max-h-full min-h-0 flex-col gap-4 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+    <div className="flex max-h-[calc(100vh-3rem)] flex-col gap-4 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
       {/* Bagian Navigasi */}
       <div className="flex shrink-0 items-center justify-between gap-2 px-1 text-xs">
         {prevFacilitator ? (
