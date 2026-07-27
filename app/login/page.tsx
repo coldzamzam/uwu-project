@@ -12,16 +12,16 @@ export default async function LoginPage({
   const { callbackUrl, error } = await searchParams;
 
   return (
-    <div className="mx-auto flex max-w-sm flex-col items-center gap-5 py-24 text-center">
+    <div className="mx-auto flex max-w-sm flex-col items-center gap-6 py-24 text-center">
       <div>
-        <h1 className="text-lg font-semibold">Monitoring Fasilitator</h1>
-        <p className="mt-1 text-sm text-ink-secondary">
+        <h1 className="text-display-md text-ink-primary">Monitoring Fasilitator</h1>
+        <p className="mt-3 text-body-md text-ink-secondary">
           Masuk dengan akun Google admin untuk mengakses dashboard.
         </p>
       </div>
 
       {error && (
-        <p className="rounded-md border border-status-critical/40 bg-status-critical/10 px-3 py-2 text-sm text-status-critical">
+        <p className="rounded-[var(--radius-sm)] border border-status-critical/40 bg-status-critical/10 px-4 py-2.5 text-body-md text-status-critical">
           {ERROR_MESSAGES[error] ?? "Gagal masuk, coba lagi."}
         </p>
       )}
@@ -34,7 +34,7 @@ export default async function LoginPage({
       >
         <button
           type="submit"
-          className="rounded-md bg-series-1 px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+          className="btn-primary"
         >
           Masuk dengan Google
         </button>

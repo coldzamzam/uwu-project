@@ -51,20 +51,20 @@ export default async function DashboardPage({
   const firstFacilitator = getFacilitators(rows)[0] ?? null;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       {isUsingSampleData() && (
-        <div className="rounded-md border border-status-warning/40 bg-status-warning/10 px-3 py-2 text-sm text-[#8a5a00] dark:text-status-warning">
+        <div className="rounded-[var(--radius-sm)] border border-status-warning/40 bg-status-warning/10 px-4 py-2.5 text-body-md text-status-warning">
           Menampilkan data contoh (fixtures/sample-sheet.csv). Set <code className="font-mono">SHEET_CSV_URL</code> di{" "}
           <code className="font-mono">.env.local</code> untuk memakai data spreadsheet asli.
         </div>
       )}
 
       <div>
-        <h1 className="text-lg font-semibold">Dashboard Fasilitator</h1>
-        <p className="text-sm text-ink-secondary">Pantau kinerja fasilitator selama siklus pendampingan 14 hari.</p>
+        <h1 className="text-title-lg text-ink-primary">Dashboard Fasilitator</h1>
+        <p className="mt-1 text-body-md text-ink-secondary">Pantau kinerja fasilitator selama siklus pendampingan 14 hari.</p>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <ModeToggle mode={mode} />
         {mode === "harian" && (
           <DaySelector days={days} current={hari} todayHari={todayHari} extraParams={{ mode: "harian" }} />
@@ -72,7 +72,7 @@ export default async function DashboardPage({
       </div>
 
       <SummaryCards summary={summary} />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatTile
           label={`Checkpoint Belum Sesuai (per Hari ${hari}, ${hariRelLabel})`}
           value={String(nonCompliantFacilCount)}
@@ -92,7 +92,7 @@ export default async function DashboardPage({
       {firstFacilitator && (
         <Link
           href={`/fasilitator/${firstFacilitator.kodeFasil}`}
-          className="flex w-full items-center justify-center rounded-md bg-series-1 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-series-1/90"
+          className="btn-primary w-full text-center"
         >
           Mulai Analisis - dari {firstFacilitator.namaFasil} (fasilitator pertama, urut A-Z)
         </Link>

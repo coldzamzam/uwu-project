@@ -60,17 +60,17 @@ export function AllFasilRawMatriksTable({ rows }: { rows: FacilRow[] }) {
 
   return (
     <div className="mb-8">
-      <h2 className="mb-3 text-sm font-semibold text-ink-primary">
+      <h2 className="mb-4 text-title-sm text-ink-primary">
         Tabel Persentase Mentah (Semua Fasilitator)
       </h2>
       
-      <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+      <div className="mb-4 flex flex-wrap items-center gap-3 text-body-md">
         <label className="flex items-center gap-1.5 text-ink-secondary">
           Kampus:
           <select
             value={kampus}
             onChange={(e) => setKampus(e.target.value)}
-            className="rounded border border-border bg-surface px-2 py-1 text-ink-primary"
+            className="rounded-[var(--radius-sm)] border border-hairline bg-background px-2.5 py-1.5 text-ink-primary"
           >
             <option value="semua">Semua</option>
             {kampusOptions.map((k) => (
@@ -83,7 +83,7 @@ export function AllFasilRawMatriksTable({ rows }: { rows: FacilRow[] }) {
           <select
             value={koordinator}
             onChange={(e) => setKoordinator(e.target.value)}
-            className="max-w-[220px] rounded border border-border bg-surface px-2 py-1 text-ink-primary"
+            className="max-w-[220px] rounded-[var(--radius-sm)] border border-hairline bg-background px-2.5 py-1.5 text-ink-primary"
           >
             <option value="semua">Semua</option>
             {koordinatorOptions.map((k) => (
@@ -96,7 +96,7 @@ export function AllFasilRawMatriksTable({ rows }: { rows: FacilRow[] }) {
           <select
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value as SortKey)}
-            className="rounded border border-border bg-surface px-2 py-1 text-ink-primary"
+            className="rounded-[var(--radius-sm)] border border-hairline bg-background px-2.5 py-1.5 text-ink-primary"
           >
             {SORT_OPTIONS.map((o) => (
               <option key={o.key} value={o.key}>{o.label}</option>
@@ -105,7 +105,7 @@ export function AllFasilRawMatriksTable({ rows }: { rows: FacilRow[] }) {
           <button
             onClick={() => setAsc(!asc)}
             title={asc ? "Menaik (klik untuk menurun)" : "Menurun (klik untuk menaik)"}
-            className="rounded border border-border bg-surface px-2 py-1 text-ink-primary hover:bg-background"
+            className="rounded-[var(--radius-sm)] border border-hairline bg-background px-2.5 py-1.5 text-ink-primary hover:border-border-strong"
           >
             {asc ? "▲" : "▼"}
           </button>
@@ -116,7 +116,7 @@ export function AllFasilRawMatriksTable({ rows }: { rows: FacilRow[] }) {
               setKampus("semua");
               setKoordinator("semua");
             }}
-            className="text-xs text-series-1 hover:underline"
+            className="text-body-md text-link hover:text-link-active"
           >
             Reset filter
           </button>
@@ -126,41 +126,41 @@ export function AllFasilRawMatriksTable({ rows }: { rows: FacilRow[] }) {
         </span>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-sm transition-shadow hover:shadow-md max-h-[480px] overflow-y-auto relative">
+      <div className="overflow-x-auto card-lg max-h-[480px] overflow-y-auto relative">
         <table className="w-full text-left text-xs text-ink-secondary">
-          <thead className="sticky top-0 z-20 border-b border-border bg-background/95 text-[10px] uppercase text-ink-muted backdrop-blur-sm">
+          <thead className="sticky top-0 z-20 border-b border-hairline bg-surface-soft text-[10px] uppercase text-ink-muted">
             <tr>
-              <th className="sticky left-0 z-30 min-w-[64px] whitespace-normal bg-background/95 px-2 py-1.5 font-medium shadow-[1px_1px_0_0_var(--tw-shadow-color)] shadow-border text-center">
+              <th className="sticky left-0 z-30 min-w-[64px] whitespace-normal bg-surface-soft px-2 py-1.5 font-medium shadow-[1px_1px_0_0_var(--tw-shadow-color)] shadow-hairline text-center">
                 Skor Akhir
               </th>
-              <th className="sticky left-[64px] z-30 min-w-[150px] whitespace-normal bg-background/95 px-2 py-1.5 font-medium shadow-[1px_1px_0_0_var(--tw-shadow-color)] shadow-border">
+              <th className="sticky left-[64px] z-30 min-w-[150px] whitespace-normal bg-surface-soft px-2 py-1.5 font-medium shadow-[1px_1px_0_0_var(--tw-shadow-color)] shadow-hairline">
                 Fasilitator
               </th>
               {SKOR_AKHIR_COLUMNS.map((col, idx) => (
                 <th
                   key={idx}
-                  className="min-w-[80px] max-w-[110px] whitespace-normal px-1.5 py-1.5 font-medium leading-snug text-center align-bottom shadow-[0_1px_0_0_var(--tw-shadow-color)] shadow-border"
+                  className="min-w-[80px] max-w-[110px] whitespace-normal px-1.5 py-1.5 font-medium leading-snug text-center align-bottom shadow-[0_1px_0_0_var(--tw-shadow-color)] shadow-hairline"
                 >
                   {col.header}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-y divide-hairline">
             {sorted.map((row, rowIdx) => {
               if (!row.raw || Object.keys(row.raw).length === 0) return null;
               const skorColor = skorAkhirColorClass(row.skorAkhir);
 
               return (
-                <tr key={rowIdx} className="transition-colors hover:bg-background/40">
-                  <td className={`sticky left-0 z-10 whitespace-nowrap px-2 py-1 text-center shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-border bg-surface/95 backdrop-blur-sm ${skorColor}`}>
+                <tr key={rowIdx} className="transition-colors hover:bg-surface-soft">
+                  <td className={`sticky left-0 z-10 whitespace-nowrap px-2 py-1 text-center shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-hairline bg-background/95 backdrop-blur-sm ${skorColor}`}>
                     {typeof row.skorAkhir === "number" ? (Number.isInteger(row.skorAkhir) ? `${row.skorAkhir}%` : `${row.skorAkhir.toFixed(2)}%`) : (row.skorAkhir != null ? `${row.skorAkhir}%` : "-")}
                   </td>
-                  <td className="sticky left-[64px] z-10 whitespace-normal bg-surface/95 px-2 py-1 font-medium backdrop-blur-sm shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-border">
+                  <td className="sticky left-[64px] z-10 whitespace-normal bg-background/95 px-2 py-1 font-medium backdrop-blur-sm shadow-[1px_0_0_0_var(--tw-shadow-color)] shadow-hairline">
                     <div className="flex flex-col">
                       <Link
                         href={`/fasilitator/${row.kodeFasil}`}
-                        className="text-series-1 hover:underline truncate max-w-[140px]"
+                        className="text-link hover:text-link-active truncate max-w-[140px]"
                         title={row.namaFasil}
                       >
                         {row.namaFasil}

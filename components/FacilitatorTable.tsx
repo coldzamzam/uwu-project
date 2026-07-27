@@ -90,14 +90,14 @@ export function FacilitatorTable({
   );
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2 text-sm">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-3 text-body-md">
         <label className="flex items-center gap-1.5 text-ink-secondary">
           Kampus:
           <select
             value={kampus}
             onChange={(e) => setKampus(e.target.value)}
-            className="rounded border border-border bg-surface px-2 py-1 text-ink-primary"
+            className="rounded-[var(--radius-sm)] border border-hairline bg-background px-2.5 py-1.5 text-ink-primary"
           >
             <option value="semua">Semua</option>
             {kampusOptions.map((k) => (
@@ -112,7 +112,7 @@ export function FacilitatorTable({
           <select
             value={koordinator}
             onChange={(e) => setKoordinator(e.target.value)}
-            className="max-w-[220px] rounded border border-border bg-surface px-2 py-1 text-ink-primary"
+            className="max-w-[220px] rounded-[var(--radius-sm)] border border-hairline bg-background px-2.5 py-1.5 text-ink-primary"
           >
             <option value="semua">Semua</option>
             {koordinatorOptions.map((k) => (
@@ -127,7 +127,7 @@ export function FacilitatorTable({
           <select
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value as SortKey)}
-            className="rounded border border-border bg-surface px-2 py-1 text-ink-primary"
+            className="rounded-[var(--radius-sm)] border border-hairline bg-background px-2.5 py-1.5 text-ink-primary"
           >
             {SORT_OPTIONS.map((o) => (
               <option key={o.key} value={o.key}>
@@ -138,7 +138,7 @@ export function FacilitatorTable({
           <button
             onClick={() => setAsc(!asc)}
             title={asc ? "Menaik (klik untuk menurun)" : "Menurun (klik untuk menaik)"}
-            className="rounded border border-border bg-surface px-2 py-1 text-ink-primary hover:bg-background"
+            className="rounded-[var(--radius-sm)] border border-hairline bg-background px-2.5 py-1.5 text-ink-primary hover:border-border-strong"
           >
             {asc ? "▲" : "▼"}
           </button>
@@ -149,7 +149,7 @@ export function FacilitatorTable({
               setKampus("semua");
               setKoordinator("semua");
             }}
-            className="text-xs text-series-1 hover:underline"
+            className="text-body-md text-link hover:text-link-active"
           >
             Reset filter
           </button>
@@ -159,64 +159,64 @@ export function FacilitatorTable({
         </span>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-        <table className="w-full min-w-[640px] border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="px-3 py-2">{headerBtn("nama", "Fasilitator")}</th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-ink-secondary">Koordinator</th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-ink-secondary">Login LK</th>
-              <th className="px-3 py-2">{headerBtn("belumLoginApp", "% Belum Login App")}</th>
-              <th className="px-3 py-2">{headerBtn("belumDihubungi", "% Belum Dihubungi")}</th>
-              <th className="px-3 py-2">{headerBtn("risiko", "Nilai Risiko")}</th>
-              {complianceCounts && <th className="px-3 py-2 text-left text-xs font-medium text-ink-secondary">Checkpoint</th>}
+      <div className="card-lg overflow-x-auto">
+        <table className="w-full min-w-[640px] border-collapse text-body-md">
+          <thead className="bg-surface-soft text-left text-[10px] uppercase text-ink-muted">
+            <tr className="border-b border-hairline font-semibold">
+              <th className="px-3.5 py-2.5">{headerBtn("nama", "Fasilitator")}</th>
+              <th className="px-3.5 py-2.5">Koordinator</th>
+              <th className="px-3.5 py-2.5">Login LK</th>
+              <th className="px-3.5 py-2.5">{headerBtn("belumLoginApp", "% Belum Login App")}</th>
+              <th className="px-3.5 py-2.5">{headerBtn("belumDihubungi", "% Belum Dihubungi")}</th>
+              <th className="px-3.5 py-2.5">{headerBtn("risiko", "Nilai Risiko")}</th>
+              {complianceCounts && <th className="px-3.5 py-2.5">Checkpoint</th>}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-hairline">
             {sorted.map((r) => (
               <tr
                 key={r.kodeFasil}
                 onClick={() => router.push(`/fasilitator/${r.kodeFasil}?hari=${hari}`)}
-                className="cursor-pointer border-b border-gridline last:border-0 hover:bg-background"
+                className="cursor-pointer transition-colors hover:bg-surface-soft"
               >
-                <td className="px-3 py-2">
+                <td className="px-3.5 py-2.5">
                   <Link
                     href={`/fasilitator/${r.kodeFasil}?hari=${hari}`}
                     onClick={(e) => e.stopPropagation()}
-                    className="font-medium text-series-1 hover:underline"
+                    className="font-medium text-link hover:text-link-active"
                   >
                     {r.namaFasil}
                   </Link>
                   <div className="text-xs text-ink-muted">{r.kodeFasil}</div>
                 </td>
-                <td className="px-3 py-2 text-ink-secondary">{r.namaKoor}</td>
-                <td className="px-3 py-2">
+                <td className="px-3.5 py-2.5 text-ink-secondary">{r.namaKoor}</td>
+                <td className="px-3.5 py-2.5">
                   {r.fasilBelumLoginLK === "Sudah" ? (
-                    <span className="text-status-good">Sudah</span>
+                    <span className="text-status-good font-medium">Sudah</span>
                   ) : (
-                    <span className="text-status-critical">Belum</span>
+                    <span className="text-status-critical font-medium">Belum</span>
                   )}
                 </td>
-                <td className="px-3 py-2 tabular-nums text-ink-secondary">
+                <td className="px-3.5 py-2.5 tabular-nums text-ink-secondary">
                   {typeof r.pctSekolahBelumLoginAplikasi === "number" ? `${r.pctSekolahBelumLoginAplikasi}%` : "-"}
                 </td>
-                <td className="px-3 py-2 tabular-nums text-ink-secondary">
+                <td className="px-3.5 py-2.5 tabular-nums text-ink-secondary">
                   {typeof r.pctSekolahBelumDihubungi === "number" ? `${r.pctSekolahBelumDihubungi}%` : "-"}
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-3.5 py-2.5">
                   {(() => {
                     const risk = getEffectiveRisk(r);
                     return <RiskBadge level={riskLevel(risk.value)} value={risk.value} estimated={risk.estimated} />;
                   })()}
                 </td>
                 {complianceCounts && (
-                  <td className="px-3 py-2">
+                  <td className="px-3.5 py-2.5">
                     {(() => {
                       const count = complianceCounts.get(r.kodeFasil) ?? 0;
                       return count > 0 ? (
-                        <span className="text-status-critical">{count} belum sesuai</span>
+                        <span className="text-status-critical font-medium">{count} belum sesuai</span>
                       ) : (
-                        <span className="text-status-good">Sesuai</span>
+                        <span className="text-status-good font-medium">Sesuai</span>
                       );
                     })()}
                   </td>

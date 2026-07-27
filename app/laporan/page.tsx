@@ -13,16 +13,16 @@ export default async function LaporanPage() {
   const text = renderSystemicReportText(report);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-lg font-semibold">Laporan Masalah Data Sistemik</h1>
-        <p className="text-sm text-ink-secondary">
+        <h1 className="text-title-lg text-ink-primary">Laporan Masalah Data Sistemik</h1>
+        <p className="mt-1 text-body-md text-ink-secondary">
           Ringkasan siap-kirim untuk tim data/Aplikasi Revit - masalah yang levelnya program-wide, bukan per
           fasilitator. Dihitung ulang tiap dibuka (per Hari ke-{todayHari}).
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatTile label="Nilai Risiko Terisi" value={`${report.nilaiRisikoTerisi}/${report.totalBaris}`} tone={report.nilaiRisikoTerisi === 0 ? "critical" : "default"} />
         <StatTile label="Belum Login LK" value={String(report.neverLoggedInCount)} />
         <StatTile label="Kolom Nilai Seragam" value={String(report.uniformColumns.length)} tone={report.uniformColumns.length > 0 ? "warning" : "default"} />
@@ -34,7 +34,7 @@ export default async function LaporanPage() {
 
       <ReportActions text={text} filename={`laporan-sistemik-hari-${todayHari}.txt`} />
 
-      <pre className="overflow-x-auto whitespace-pre-wrap rounded-lg border border-border bg-surface p-4 font-mono text-xs leading-relaxed text-ink-primary">
+      <pre className="overflow-x-auto whitespace-pre-wrap card-lg p-6 font-mono text-xs leading-relaxed text-ink-primary">
         {text}
       </pre>
 

@@ -23,11 +23,11 @@ export default async function AnalisisMassalPage({
   const totalPanggilan = facilitators.length * days.length;
 
   return (
-    <div className="">
-      <h1 className="text-lg font-semibold mb-4">Analisis Massal</h1>
+    <div className="flex flex-col gap-8">
+      <h1 className="text-title-lg text-ink-primary">Analisis Massal</h1>
       <div className="flex flex-col gap-6 hidden">
         <div>
-          <p className="text-sm text-ink-secondary">
+          <p className="text-body-md text-ink-secondary">
             {tab === "fasilitator" ? (
               <>
                 Generate analisis AI untuk setiap fasilitator di setiap hari sekaligus ({facilitators.length}{" "}
@@ -45,7 +45,7 @@ export default async function AnalisisMassalPage({
           </p>
         </div>
         {!aiConfigured && (
-          <div className="rounded-md border border-status-critical/40 bg-status-critical/10 px-3 py-2 text-sm text-status-critical">
+          <div className="rounded-[var(--radius-sm)] border border-status-critical/40 bg-status-critical/10 px-4 py-2.5 text-body-md text-status-critical">
             Belum ada provider AI dikonfigurasi di <code className="font-mono">.env.local</code> - semua panggilan akan
             langsung gagal. Isi salah satu: <code className="font-mono">HF_TOKEN</code>,{" "}
             <code className="font-mono">GEMINI_API_KEY</code>, atau <code className="font-mono">GROQ_API_KEY</code>.
@@ -58,8 +58,8 @@ export default async function AnalisisMassalPage({
           <DailySummaryBulkRunner days={days} todayHari={todayHari} totalFasilitator={facilitators.length} />
         )}
       </div>
-      <div className="flex justify-center items-center">
-        <p className="text-lg text-red-500 font-bold">Analisis massal ditutup sementara untuk menghemat token LLM.</p>
+      <div className="flex justify-center items-center py-12">
+        <p className="text-title-sm text-status-critical">Analisis massal ditutup sementara untuk menghemat token LLM.</p>
       </div>
     </div>
   );

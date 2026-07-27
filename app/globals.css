@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;475;500;600&display=swap');
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
@@ -6,38 +7,93 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #f9f9f7;
-  --surface: #fcfcfb;
-  --ink-primary: #0b0b0b;
-  --ink-secondary: #52514e;
-  --ink-muted: #898781;
-  --gridline: #e1e0d9;
-  --baseline: #c3c2b7;
-  --border: rgba(11, 11, 11, 0.1);
+  /* ── Airtable Design System Tokens ── */
 
+  /* Surface */
+  --background: #ffffff;
+  --surface: #ffffff;
+  --surface-soft: #f8fafc;
+  --surface-strong: #e0e2e6;
+  --surface-dark: #181d26;
+  --surface-dark-elevated: #1d1f25;
+
+  /* Text */
+  --ink-primary: #181d26;
+  --ink-secondary: #333840;
+  --ink-muted: #41454d;
+
+  /* Border */
+  --hairline: #dddddd;
+  --border-strong: #9297a0;
+  --border: #dddddd;
+
+  /* Brand */
+  --primary: #181d26;
+  --primary-active: #0d1218;
+  --on-primary: #ffffff;
+
+  /* Signature surfaces */
+  --signature-coral: #aa2d00;
+  --signature-forest: #0a2e0e;
+  --signature-cream: #f5e9d4;
+  --signature-peach: #fcab79;
+  --signature-mint: #a8d8c4;
+  --signature-yellow: #f4d35e;
+  --signature-mustard: #d9a441;
+
+  /* Semantic */
+  --link: #1b61c9;
+  --link-active: #1a3866;
+  --info: #254fad;
+  --info-border: #458fff;
+
+  /* Functional Status (unchanged — data viz, not brand) */
   --status-good: #0ca30c;
   --status-warning: #fab219;
   --status-serious: #ec835a;
   --status-critical: #d03b3b;
   --status-unknown: #898781;
 
+  /* Chart series (unchanged) */
   --series-1: #2a78d6;
   --series-2: #1baf7a;
   --series-3: #eda100;
   --series-4: #008300;
   --series-5: #4a3aa7;
   --series-6: #e34948;
+
+  /* Airtable border-radius scale */
+  --radius-xs: 2px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
+  --color-surface-strong: var(--surface-strong);
+  --color-surface-dark: var(--surface-dark);
   --color-ink-primary: var(--ink-primary);
   --color-ink-secondary: var(--ink-secondary);
   --color-ink-muted: var(--ink-muted);
-  --color-gridline: var(--gridline);
-  --color-baseline: var(--baseline);
+  --color-hairline: var(--hairline);
+  --color-border-strong: var(--border-strong);
   --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-active: var(--primary-active);
+  --color-on-primary: var(--on-primary);
+  --color-link: var(--link);
+  --color-link-active: var(--link-active);
+  --color-signature-coral: var(--signature-coral);
+  --color-signature-forest: var(--signature-forest);
+  --color-signature-cream: var(--signature-cream);
+  --color-signature-peach: var(--signature-peach);
+  --color-signature-mint: var(--signature-mint);
+
+  --color-gridline: var(--hairline);
+  --color-baseline: var(--border-strong);
 
   --color-status-good: var(--status-good);
   --color-status-warning: var(--status-warning);
@@ -52,14 +108,71 @@
   --color-series-5: var(--series-5);
   --color-series-6: var(--series-6);
 
-  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
-
-/* Dashboard ini sengaja dikunci whitemode (tidak mengikuti prefers-color-scheme)
-   supaya tampilan konsisten untuk semua pengguna, terlepas dari tema OS/browser. */
 
 body {
   background: var(--background);
   color: var(--ink-primary);
   font-family: var(--font-sans);
+}
+
+/* Utility classes from Airtable design system */
+.text-display-xl { font-size: 48px; font-weight: 500; line-height: 1.1; letter-spacing: 0; }
+.text-display-lg { font-size: 40px; font-weight: 400; line-height: 1.2; letter-spacing: 0; }
+.text-display-md { font-size: 32px; font-weight: 400; line-height: 1.2; letter-spacing: 0; }
+.text-title-lg { font-size: 24px; font-weight: 400; line-height: 1.35; letter-spacing: 0.12px; }
+.text-title-md { font-size: 20px; font-weight: 400; line-height: 1.5; letter-spacing: 0; }
+.text-title-sm { font-size: 18px; font-weight: 500; line-height: 1.4; letter-spacing: 0; }
+.text-label-md { font-size: 16px; font-weight: 500; line-height: 1.4; letter-spacing: 0; }
+.text-body-md { font-size: 14px; font-weight: 400; line-height: 1.25; letter-spacing: 0; }
+.text-caption { font-size: 14px; font-weight: 500; line-height: 1.35; letter-spacing: 0.16px; }
+
+/* Button primitives */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 12px 24px;
+  border-radius: var(--radius-lg);
+  transition: background 150ms ease;
+  cursor: pointer;
+  border: none;
+}
+.btn-primary:active { background: var(--primary-active); }
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--background);
+  color: var(--ink-primary);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 12px 24px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--hairline);
+  transition: border-color 150ms ease;
+  cursor: pointer;
+}
+.btn-secondary:active { border-color: var(--border-strong); }
+
+/* Card primitives */
+.card {
+  background: var(--background);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+}
+.card-lg {
+  background: var(--background);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
 }

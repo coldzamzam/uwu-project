@@ -99,35 +99,31 @@ export default async function FacilitatorDetailPage({
   // skeleton 10 detik hanya demi tanda seru kecil di day selector.
 
   return (
-    // Trik menggunakan margin negatif (-mx-6 -my-6) untuk membatalkan padding
-    // bawaan dari <main> di layout.tsx. Ini menghindari penggunaan w-screen
-    // yang sering menyebabkan scrollbar horizontal yang mengganggu, sekaligus
-    // menjaga konten tetap memenuhi max-width 1600px.
-    <div className="-mx-6 -my-6 px-4 py-6 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       {anomalies.length > 0 && (
         <a
           href="#anomali-terdeteksi"
-          className="block w-full shrink-0 rounded-md border border-status-critical/40 bg-status-critical/10 px-4 py-2 text-sm font-semibold text-status-critical hover:bg-status-critical/15"
+          className="block w-full rounded-[var(--radius-md)] border border-status-critical/40 bg-status-critical/10 px-4 py-3 text-body-md font-medium text-status-critical transition-colors hover:bg-status-critical/15"
         >
           ⚠ {anomalies.length} anomali terdeteksi pada data fasilitator ini - data mungkin tidak akurat, jangan
           langsung dipercaya. Lihat detail di bagian &quot;Anomali Terdeteksi&quot; ↓
         </a>
       )}
-      <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
+
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link href="/" className="text-sm text-series-1 hover:underline">
+          <Link href="/" className="text-body-md text-link hover:text-link-active">
             ← Kembali ke Dashboard
           </Link>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <h1 className="text-lg font-semibold">{currentRow.namaFasil}</h1>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <h1 className="text-title-lg text-ink-primary">{currentRow.namaFasil}</h1>
             <RiskBadge level={riskLevel(risk.value)} value={risk.value} estimated={risk.estimated} />
             {editUrl && (
               <a
                 href={editUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-ink-secondary hover:border-series-1 hover:text-series-1"
+                className="btn-secondary !px-3 !py-1 !text-xs"
               >
                 LK Log ↗
               </a>
@@ -137,19 +133,19 @@ export default async function FacilitatorDetailPage({
                 href={lkFasilEditUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-ink-secondary hover:border-series-1 hover:text-series-1"
+                className="btn-secondary !px-3 !py-1 !text-xs"
               >
                 LK Fasil ↗
               </a>
             )}
             {nonCompliantCount > 0 && (
-              <span className="rounded-full bg-status-critical/10 px-2.5 py-1 text-xs font-medium text-status-critical">
+              <span className="rounded-[var(--radius-md)] bg-status-critical/10 px-3 py-1 text-xs font-medium text-status-critical">
                 ⚠ {nonCompliantCount} checkpoint belum sesuai (
                 {mode === "alltime" ? `keseluruhan siklus, kondisi terkini Hari ${todayHari}` : `per Hari ${hari}, ${relLabel}`})
               </span>
             )}
           </div>
-          <p className="text-sm text-ink-secondary">
+          <p className="mt-1 text-body-md text-ink-secondary">
             {currentRow.kodeFasil} · Koordinator: {currentRow.namaKoor} ({currentRow.kodeKoor}) · Admin: {currentRow.atmin}
           </p>
         </div>
@@ -170,10 +166,10 @@ export default async function FacilitatorDetailPage({
         <TodayLogPanel hari={hari} todayHari={todayHari} logs={todayLogs} />
       </div>
 
-      <div className="flex flex-col gap-6">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_480px] lg:items-start">
+      <div className="flex flex-col gap-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_480px] lg:items-start">
           <FacilKendalaPanel row={currentRow} history={history} compliance={compliance} hari={hari} notes={notes} unfilled={unfilled} />
-          <div className="lg:sticky lg:top-6">
+          <div className="lg:sticky lg:top-[80px]">
             <FacilitatorAnalysisWorkbench
               key={`${kode}-${hari}-${mode}`}
               row={currentRow}
@@ -193,13 +189,12 @@ export default async function FacilitatorDetailPage({
 
         {anomalies.length > 0 && (
           <div>
-            <div id="anomali-terdeteksi" className="mb-2">
-              <h2 className="mb-2 text-sm font-semibold text-ink-primary">Anomali Terdeteksi</h2>
+            <div id="anomali-terdeteksi" className="mb-3">
+              <h2 className="mb-3 text-title-sm text-ink-primary">Anomali Terdeteksi</h2>
               <AnomalyList items={anomalies} />
             </div>
           </div>
         )}
-      </div>
       </div>
     </div>
   );

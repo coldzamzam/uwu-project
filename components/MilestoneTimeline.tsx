@@ -337,15 +337,15 @@ export function MilestoneTimeline({
   const rows = buildRows(todayHari, viewedHari);
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-2.5">
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-ink-primary">Milestone</h2>
-        <span className="text-[10px] text-ink-muted">arahkan kursor ke node untuk tujuan checkpoint</span>
+    <div className="card p-4">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h2 className="text-body-md font-semibold text-ink-primary">Milestone</h2>
+        <span className="text-xs text-ink-muted">arahkan kursor ke node untuk tujuan checkpoint</span>
       </div>
 
-      <div className="relative">
-        <div className="absolute left-2.5 top-0 bottom-0 w-0.5 -translate-x-1/2 rounded-full bg-gridline" aria-hidden />
-        <div className="flex flex-col">
+      <div className="relative my-1">
+        <div className="absolute left-2.5 top-0 bottom-0 w-px -translate-x-1/2 rounded-full bg-hairline" aria-hidden />
+        <div className="flex flex-col gap-1">
           {rows.map((row) =>
             row.kind === "marker" ? (
               <MarkerRow key={`marker-${row.variant}`} day={row.day} variant={row.variant} />
@@ -363,24 +363,24 @@ export function MilestoneTimeline({
         </div>
       </div>
 
-      <div className="mt-1.5 flex flex-wrap gap-x-2.5 gap-y-0.5 border-t border-gridline pt-1.5 text-[9px] text-ink-muted">
-        <span className="flex items-center gap-1">
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-hairline pt-2 text-[11px] text-ink-muted">
+        <span className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-status-good" /> Hijau ≥90% (Sesuai)
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-status-warning" /> Kuning 70-90%
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-status-serious" /> Oranye 30-70%
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-status-critical" /> Merah &lt;30%
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-status-unknown" /> Tidak ada data
         </span>
-        <span className="flex items-center gap-1">
-          <span className="h-2 w-2 rounded-full border border-dashed border-baseline" /> Belum jatuh tempo
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full border border-dashed border-border-strong" /> Belum jatuh tempo
         </span>
       </div>
     </div>

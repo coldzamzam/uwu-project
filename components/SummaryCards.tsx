@@ -3,7 +3,7 @@ import { StatTile } from "./StatTile";
 
 export function SummaryCards({ summary }: { summary: DaySummary }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
       <StatTile label="Total Fasilitator" value={String(summary.totalFasilitator)} />
       <StatTile
         label="Belum Login LK"

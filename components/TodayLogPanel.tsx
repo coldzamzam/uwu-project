@@ -27,7 +27,7 @@ function LogRow({ label, fullLabel, row }: { label: string; fullLabel: string; r
     );
   }
   return (
-    <tr className="transition-colors hover:bg-background/40">
+    <tr className="transition-colors hover:bg-surface-soft">
       <td className={LABEL_CELL} title={fullLabel}>{label}</td>
       {SKOR_AKHIR_COLUMNS.map((col, idx) => {
         const rawValue = row.raw[col.header] ?? "-";
@@ -43,7 +43,7 @@ function LogRow({ label, fullLabel, row }: { label: string; fullLabel: string; r
       })}
       <td
         title="Nilai Akhir"
-        className={`overflow-hidden text-ellipsis whitespace-nowrap border-l border-border/60 px-1 py-2 text-center text-xs ${skorAkhirColorClass(row.skorAkhir)}`}
+        className={`overflow-hidden text-ellipsis whitespace-nowrap border-l border-hairline px-1 py-2 text-center text-xs ${skorAkhirColorClass(row.skorAkhir)}`}
       >
         {typeof row.skorAkhir === "number" ? (Number.isInteger(row.skorAkhir) ? `${row.skorAkhir}%` : `${row.skorAkhir.toFixed(2)}%`) : "-"}
       </td>
@@ -74,12 +74,12 @@ export function TodayLogPanel({
 
   return (
     <div>
-      <h2 className="mb-4 text-sm font-semibold text-ink-primary">
+      <h2 className="mb-4 text-title-sm text-ink-primary">
         {hari === todayHari ? `Log Hari Ini (Hari ${hari})` : `Log Hari ${hari}`}
       </h2>
-      <div className="w-full rounded-xl border border-border bg-surface shadow-sm">
+      <div className="card-lg overflow-hidden">
         <table className="w-full table-fixed text-left text-sm text-ink-secondary">
-          <thead className="border-b border-border bg-background/50 text-[10px] uppercase text-ink-muted">
+          <thead className="border-b border-hairline bg-surface-soft text-[10px] uppercase text-ink-muted">
             <tr>
               <th rowSpan={2} className="w-16 whitespace-nowrap px-2 py-2 text-left align-bottom font-medium">
                 Log
@@ -89,13 +89,13 @@ export function TodayLogPanel({
                   key={idx}
                   colSpan={g.span}
                   title={`Checkpoint ${g.checkpointNo}. ${g.checkpointName} (aktif sejak Hari ${g.activeFromDay})`}
-                  className="border-l border-border/60 px-1 py-1 text-center font-semibold leading-tight"
+                  className="border-l border-hairline px-1 py-1 text-center font-semibold leading-tight"
                 >
                   H{g.activeFromDay || "?"}
                   {g.shortCode && <span className="ml-0.5 font-normal text-ink-muted">{g.shortCode}</span>}
                 </th>
               ))}
-              <th rowSpan={2} className="w-16 whitespace-nowrap border-l border-border/60 px-1 py-2 text-center align-bottom font-medium">
+              <th rowSpan={2} className="w-16 whitespace-nowrap border-l border-hairline px-1 py-2 text-center align-bottom font-medium">
                 Nilai Akhir
               </th>
             </tr>
@@ -105,7 +105,7 @@ export function TodayLogPanel({
                   <th
                     key={`${g.checkpointNo}-${i}`}
                     title={col.header}
-                    className="border-l border-border/60 px-1 py-1 text-center font-normal normal-case"
+                    className="border-l border-hairline px-1 py-1 text-center font-normal normal-case"
                   >
                     {col.short}
                   </th>
@@ -113,7 +113,7 @@ export function TodayLogPanel({
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-y divide-hairline">
             <LogRow label="Log 1" fullLabel="Log 1 · 07.00 WIB" row={logs.log1} />
             <LogRow label="Log 2" fullLabel="Log 2 · 13.30 WIB" row={logs.log2} />
           </tbody>

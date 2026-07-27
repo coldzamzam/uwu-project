@@ -14,13 +14,13 @@ export function AnomalyList({ items }: { items: AnomalyItem[] }) {
       {items.map((item, i) => (
         <li
           key={i}
-          className={`rounded-lg border p-3 text-sm ${
+          className={`rounded-[var(--radius-md)] border p-3 text-body-md ${
             item.severity === "tinggi" ? "border-status-critical/30 bg-status-critical/5" : "border-status-warning/30 bg-status-warning/5"
           }`}
         >
           <span
-            className={`mr-2 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-              item.severity === "tinggi" ? "bg-status-critical/15 text-status-critical" : "bg-status-warning/20 text-[#8a5a00] dark:text-status-warning"
+            className={`mr-2 inline-block rounded-[var(--radius-sm)] px-2 py-0.5 text-xs font-medium ${
+              item.severity === "tinggi" ? "bg-status-critical/15 text-status-critical" : "bg-status-warning/20 text-status-warning"
             }`}
           >
             {TYPE_LABEL[item.type]}

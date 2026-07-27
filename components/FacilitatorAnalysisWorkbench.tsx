@@ -40,16 +40,6 @@ interface KendalaDisplay {
   statusNote: string | null;
 }
 
-/** Kolom Kendala Komunikasi bisa berisi DUA hal berbeda digabung dengan
- * pemisah " | ": narasi kendala asli dari fasilitator (mis. "Kepala sekolah
- * sulit dihubungi, Jaringan internet sekolah bermasalah"), dan/atau pesan
- * status kelengkapan data OTOMATIS kalau kolom G (status) kosong untuk
- * sebagian/semua sekolah hari itu (mis. "Belum diisi status komunikasi
- * sebagian sekolah (3 dari 20)"). Sheet SENGAJA memisah keduanya pakai " | "
- * (bukan koma) supaya beda jelas dari narasi asli - dipakai persis di sini
- * untuk memisah juga: pesan status ditaruh sebagai card kecil di LUAR input
- * field, narasi asli (kalau ada) tetap di dalam field seperti kolom Kendala
- * lain. */
 const STATUS_KOMUNIKASI_PATTERN = /^belum\s+diisi\s+status\s+komunikasi\s+(semua|sebagian)\s+sekolah(\s*\(\s*\d+\s*dari\s*\d+\s*\))?\.?$/i;
 
 function extractStatusKomunikasiNote(text: string): { note: string | null; rest: string } {
@@ -62,14 +52,6 @@ function extractStatusKomunikasiNote(text: string): { note: string | null; rest:
   return { note: noteParts.length ? noteParts.join(" | ") : null, rest: restParts.join(" | ") };
 }
 
-/** Cari hari terakhir SEBELUM `beforeDay` di mana kolom Kendala Komunikasi
- * benar-benar menunjukkan fasilitator aktif melapor (narasi kendala asli,
- * ATAU konfirmasi eksplisit "tidak ada kendala") - BUKAN sekadar "Belum
- * Diisi"/pesan status "belum diisi status komunikasi ...", yang keduanya
- * bukan bukti aktivitas. Dipakai supaya "Belum diisi status komunikasi
- * semua sekolah" dikasih konteks "terakhir kali dia beneran lapor kapan",
- * bukan cuma bilang "belum diisi" tanpa riwayat. null kalau tidak ketemu
- * sama sekali di histori yang tersedia (mis. memang belum pernah lapor). */
 function lastActiveCommunicationDay(history: FacilRow[], beforeDay: number): number | null {
   const byHari = new Map(history.map((r) => [r.hari, r]));
   for (let h = beforeDay - 1; h >= 1; h--) {
@@ -85,26 +67,6 @@ function lastActiveCommunicationDay(history: FacilRow[], beforeDay: number): num
   return null;
 }
 
-/**
- * Kolom Kendala kosong TIDAK otomatis berarti "belum diisi" - itu cuma
- * masalah (state "belum-diisi") kalau selnya literal "Belum Diisi" DAN
- * checkpoint terkait sudah jatuh tempo. Kosong beneran (tidak ada teks) atau
- * konfirmasi eksplisit "tidak ada kendala/aman" berarti fasilitator memang
- * tidak melaporkan kendala = aman (hijau), dan kosong SEBELUM checkpoint
- * terkait jatuh tempo (lihat KENDALA_ACTIVE_FROM_DAY) memang belum relevan
- * sama sekali (netral, abu) - ketiganya BUKAN sinyal masalah lapangan. Pakai
- * classifyKendalaText yang sama dengan lib/compliance.ts (isIssue) supaya
- * definisi "ini laporan masalah beneran" konsisten satu sumber.
- *
- * TIDAK ADA lagi akhiran "(sejak Hari X)" (dulu ada di sini, dihitung dari
- * streak "teksnya identik berhari-hari mundur") - DIKONFIRMASI 2026-07-20
- * oleh program owner: tab "masterLog" itu MENGOVERWRITE kendala sebelumnya
- * dengan yang sedang aktif (bukan nambah baris baru per hari), jadi baris
- * "Hari X" yang lama TIDAK bisa dipercaya sebagai tangkapan asli hari itu -
- * "streak" yang kelihatan sebenarnya bisa cuma efek overwrite, bukan bukti
- * kendala beneran belum berubah sekian hari. Jangan hitung ulang ini tanpa
- * sumber histori yang benar-benar append-only.
- */
 function kendalaDisplayBase(row: FacilRow, history: FacilRow[], key: keyof FacilRow, hari: number): KendalaDisplay {
   const raw = row[key];
   const rawText = typeof raw === "string" ? raw.trim() : "";
@@ -115,10 +77,6 @@ function kendalaDisplayBase(row: FacilRow, history: FacilRow[], key: keyof Facil
     return { text: `(belum jatuh tempo - checkpoint terkait mulai Hari ${activeFromDay})`, state: "netral", isPlaceholder: true, statusNote: null };
   }
 
-  // Pisahkan pesan status otomatis ("Belum diisi status komunikasi ...
-  // sekolah") keluar dari teks yang dievaluasi sebagai kendala - lihat
-  // extractStatusKomunikasiNote. Sisa teks (kalau ada) diperlakukan seperti
-  // kolom Kendala lain (narasi asli fasilitator).
   let text = rawText;
   let statusNote: string | null = null;
   if (key === "kendalaKomunikasi") {
@@ -133,9 +91,6 @@ function kendalaDisplayBase(row: FacilRow, history: FacilRow[], key: keyof Facil
 
   const kendalaState = classifyKendalaText(text);
   if (kendalaState === "belum-diisi") {
-    // Sentinel literal "Belum Diisi" tidak punya info tambahan - tampilkan
-    // placeholder sintetis. Teks lain yang masih lolos ke sini (bukan sentinel
-    // persis) adalah info asli dari sheet - jangan ditimpa.
     const isLiteralSentinel = text === "Belum Diisi";
     const displayText = isLiteralSentinel ? "(belum diisi fasilitator, padahal checkpoint sudah jatuh tempo)" : text;
     return { text: displayText, state: "belum-diisi", isPlaceholder: isLiteralSentinel, statusNote };
@@ -153,30 +108,11 @@ const KENDALA_STATE_CONTAINER: Record<KendalaState, string> = {
   aman: `${TIER_STYLES.hijau.bg} border-status-good/40`,
   "belum-diisi": `${TIER_STYLES.kuning.bg} border-status-warning/40`,
   "ada-kendala": `${TIER_STYLES.merah.bg} border-status-critical/40`,
-  netral: "border-border bg-background",
+  netral: "border-hairline bg-background",
 };
 
-/** Definisi/sumber "% Sekolah Belum Dihubungi" - dipakai buat tooltip supaya
- * "5%" itu jelas jawabannya "dari mana": persentase mentah dari kolom LK
- * Fasil (dihitung fasilitator sendiri terhadap semesta sekolah yang
- * ditangani di Lembar Kerja), bukan hasil hitung ulang aplikasi ini dari
- * daftar sekolah individual - makanya tidak bisa ditampilkan "X dari Y
- * sekolah" persis di sini (beda dari catatan Kendala Komunikasi yang
- * kadang-kadang sudah menuliskan rinciannya sendiri, mis. "17 dari 20"). */
 const komunikasiIndicatorInfo = findIndicator("pctSekolahBelumDihubungi");
 
-/** Status "sudah/belum menghubungi sekolah" untuk hari yang dilihat - ditaruh
- * di atas kolom Kendala Komunikasi (bukan bagian isi field-nya) supaya
- * konteks checkpoint 1 ("Sudah dihubungi") langsung kelihatan tanpa perlu
- * cek kartu checkpoint terpisah.
- *
- * SENGAJA baca dari `compliance` (hasil getCheckpointCompliance, yang sudah
- * lolos trustLkOkValue di lib/compliance.ts), BUKAN raw row.pctSekolahBelumDihubungi
- * langsung - kolom itu ber-sumber LK Fasil, jadi 0% "sudah menghubungi semua
- * sekolah" bisa cuma artefak sheet (belum ada data) kalau kolom Kendala
- * Komunikasi terkait masih bilang "belum diisi". Tanpa trust-check ini badge
- * bisa bilang "Sudah menghubungi semua sekolah" padahal Kendala Komunikasi-nya
- * sendiri persis bilang "Belum diisi status komunikasi semua sekolah". */
 function ContactStatusNote({ compliance }: { compliance: CheckpointCompliance[] }) {
   const ind = compliance.find((c) => c.group.no === 1)?.indicators.find((i) => i.kolom === "pctSekolahBelumDihubungi");
   if (!ind) return null;
@@ -187,7 +123,7 @@ function ContactStatusNote({ compliance }: { compliance: CheckpointCompliance[] 
 
   if (ind.status === "unknown") {
     return (
-      <div className="inline-flex w-fit items-center gap-1.5 rounded bg-status-unknown/10 px-2 py-1 text-[11px] font-medium text-ink-muted">
+      <div className="inline-flex w-fit items-center gap-1.5 rounded-[var(--radius-sm)] bg-status-unknown/10 px-2 py-1 text-[11px] font-semibold text-ink-muted">
         ⚠ Status hubungi belum bisa dipastikan{ind.note ? ` - ${ind.note}` : ""}
         {tooltipText && <InfoTooltip text={tooltipText} />}
       </div>
@@ -199,7 +135,7 @@ function ContactStatusNote({ compliance }: { compliance: CheckpointCompliance[] 
   const s = TIER_STYLES[tier];
   const label = raw === 0 ? "Sudah menghubungi semua sekolah" : `Belum menghubungi ${ind.detail} sekolah`;
   return (
-    <div className={`inline-flex w-fit items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium ${s.bg} ${s.text}`}>
+    <div className={`inline-flex w-fit items-center gap-1.5 rounded-[var(--radius-sm)] px-2 py-1 text-[11px] font-semibold ${s.bg} ${s.text}`}>
       {label}
       {tooltipText && <InfoTooltip text={tooltipText} />}
     </div>
@@ -218,9 +154,6 @@ function facilHref(kodeFasil: string, hari: number, mode: "alltime" | "harian"):
   return `/fasilitator/${kodeFasil}?${params.toString()}`;
 }
 
-/** Kartu daftar kolom Kendala fasilitator (baca saja) - dipisah dari
- * FacilitatorAnalysisWorkbench supaya bisa ditaruh di kolom tengah halaman
- * fasilitator (kolom "kendala"), terpisah dari panel Analisis AI di kanan. */
 export function FacilKendalaPanel({
   row,
   history,
@@ -241,19 +174,19 @@ export function FacilKendalaPanel({
   const renderField = (f: (typeof KENDALA_FIELDS)[number]) => {
     const d = kendalaDisplayBase(row, history, f.key, hari);
     return (
-      <label key={String(f.key)} className="flex h-full flex-col gap-0.5 text-[11px] text-ink-secondary">
-        <span className="font-medium text-ink-primary">{KEY_TO_HEADER[f.key] ?? f.label}</span>
+      <label key={String(f.key)} className="flex h-full flex-col gap-1 text-xs text-ink-secondary">
+        <span className="font-semibold text-ink-primary">{KEY_TO_HEADER[f.key] ?? f.label}</span>
         {f.key === "kendalaKomunikasi" && <ContactStatusNote compliance={compliance} />}
         {d.statusNote && (
-          <div className={`inline-flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-semibold ${TIER_STYLES.kuning.bg} ${TIER_STYLES.kuning.text}`}>
+          <div className={`inline-flex w-fit items-center gap-1 rounded-[var(--radius-sm)] px-2 py-0.5 text-[10px] font-semibold ${TIER_STYLES.kuning.bg} ${TIER_STYLES.kuning.text}`}>
             {d.statusNote}
           </div>
         )}
         <textarea
           readOnly
           value={d.text}
-          className={`flex-1 min-h-[3.5rem] resize-none rounded-md border px-1.5 py-1 text-[11px] leading-snug ${KENDALA_STATE_CONTAINER[d.state]} ${
-            d.isPlaceholder ? "italic text-ink-muted" : "text-ink-primary"
+          className={`flex-1 min-h-[4rem] resize-none rounded-[var(--radius-sm)] border px-2 py-1.5 text-xs leading-relaxed ${KENDALA_STATE_CONTAINER[d.state]} ${
+            d.isPlaceholder ? "italic text-ink-muted" : "text-ink-primary font-medium"
           } focus:outline-none`}
         />
       </label>
@@ -264,42 +197,45 @@ export function FacilKendalaPanel({
   const mengundurkanDiriCount = typeof mengundurkanDiriRaw === "string" ? parseInt(mengundurkanDiriRaw, 10) : typeof mengundurkanDiriRaw === "number" ? mengundurkanDiriRaw : 0;
 
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-surface shadow-sm">
-      <div className="flex shrink-0 flex-col gap-2 border-b border-gridline px-4 py-2.5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold text-ink-primary">Catatan Kendala Fasil (Hari ke-{hari})</h3>
+    <div className="card flex flex-col overflow-hidden">
+      <div className="flex shrink-0 flex-col gap-2 border-b border-hairline bg-surface-soft px-5 py-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-title-sm text-ink-primary">Catatan Kendala Fasil (Hari ke-{hari})</h3>
           {mengundurkanDiriCount > 0 ? (
-            <span className="rounded-md bg-status-critical/15 px-2.5 py-1 text-xs font-bold text-status-critical border border-status-critical/30 shadow-sm animate-pulse">
+            <span className="rounded-[var(--radius-sm)] bg-status-critical/15 px-3 py-1 text-xs font-bold text-status-critical border border-status-critical/40 animate-pulse">
               ⚠ {mengundurkanDiriCount} Sekolah Mengundurkan Diri!
             </span>
           ) : (
-            <span className="rounded-md bg-background px-2.5 py-1 text-[11px] font-medium text-ink-muted border border-border">
+            <span className="rounded-[var(--radius-sm)] bg-background px-2.5 py-1 text-xs font-medium text-ink-muted border border-hairline">
               0 Sekolah Mengundurkan Diri
             </span>
           )}
         </div>
       </div>
 
-      <div className="p-2.5">
-        <div className="grid grid-cols-2 auto-rows-fr gap-2 2xl:grid-cols-3">
-          {renderField(firstField)}
-          <FacilDocumentFunnel row={row} kategori="Admin" />
-          <FacilDocumentFunnel row={row} kategori="Teknis" />
+      <div className="p-5 flex flex-col gap-5">
+        <div className="flex flex-col gap-4">
+          <div className="w-full">{renderField(firstField)}</div>
+          <div className="w-full"><FacilDocumentFunnel row={row} kategori="Admin" /></div>
+          <div className="w-full"><FacilDocumentFunnel row={row} kategori="Teknis" /></div>
+        </div>
+
+        <div className="grid grid-cols-1 auto-rows-fr gap-4 sm:grid-cols-2 2xl:grid-cols-3">
           {restFields.map(renderField)}
         </div>
 
         {((notes && notes.length > 0) || (unfilled && unfilled.length > 0)) && (
-          <div className="mt-4 flex flex-col gap-3 border-t border-gridline px-1 pt-3">
+          <div className="flex flex-col gap-4 border-t border-hairline pt-5">
             {notes && notes.length > 0 && (
               <div>
-                <h4 className="mb-2 text-xs font-semibold text-ink-primary">Riwayat Catatan Kualitatif</h4>
-                <ul className="grid grid-cols-2 gap-1.5 2xl:grid-cols-3">
+                <h4 className="mb-3 text-body-md font-semibold text-ink-primary">Riwayat Catatan Kualitatif</h4>
+                <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 2xl:grid-cols-3">
                   {notes.map((n, i) => (
-                    <li key={i} className="rounded-md border border-border bg-background p-2 text-xs shadow-sm">
-                      <span className="mr-1.5 rounded bg-surface-hover px-1 py-0.5 text-[10px] text-ink-muted">
+                    <li key={i} className="rounded-[var(--radius-sm)] border border-hairline bg-surface-soft p-2.5 text-xs">
+                      <span className="mr-2 inline-block rounded-[var(--radius-xs)] bg-background border border-hairline px-1.5 py-0.5 text-[10px] font-semibold text-ink-muted">
                         {n.hariStart === n.hariEnd ? `Hari ${n.hariStart}` : `Hari ${n.hariStart}-${n.hariEnd}`}
                       </span>
-                      <span className="font-medium text-ink-secondary">{n.label}:</span> <span className="text-ink-primary">{n.text}</span>
+                      <span className="font-semibold text-ink-secondary">{n.label}:</span> <span className="text-ink-primary font-medium">{n.text}</span>
                     </li>
                   ))}
                 </ul>
@@ -308,11 +244,11 @@ export function FacilKendalaPanel({
 
             {unfilled && unfilled.length > 0 && (
               <div>
-                <h4 className="mb-2 text-xs font-semibold text-ink-primary">Kendala Belum Diisi Fasilitator</h4>
-                <ul className="grid grid-cols-2 gap-1 2xl:grid-cols-3">
+                <h4 className="mb-3 text-body-md font-semibold text-ink-primary">Kendala Belum Diisi Fasilitator</h4>
+                <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 2xl:grid-cols-3">
                   {unfilled.map((n, i) => (
-                    <li key={i} className="rounded-md border border-border bg-background px-2 py-1.5 text-[11px] text-ink-muted shadow-sm">
-                      <span className="mr-1.5 rounded bg-surface-hover px-1 py-0.5">
+                    <li key={i} className="rounded-[var(--radius-sm)] border border-hairline bg-surface-soft px-3 py-2 text-xs text-ink-muted">
+                      <span className="mr-2 inline-block rounded-[var(--radius-xs)] bg-background border border-hairline px-1.5 py-0.5 text-[10px] font-semibold">
                         {n.hariStart === n.hariEnd ? `Hari ${n.hariStart}` : `Hari ${n.hariStart}-${n.hariEnd}`}
                       </span>
                       {n.label}
@@ -328,13 +264,6 @@ export function FacilKendalaPanel({
   );
 }
 
-/**
- * Panel review satu fasilitator: kolom-kolom Kendala (baca saja, buat konteks
- * sekilas tanpa scroll ke tiap kartu checkpoint) + kolom Analisis yang bisa
- * diisi manual ATAU digenerate AI (dua-duanya boleh diedit lagi sebelum
- * disimpan), plus tombol simpan ke spreadsheet (kolom "Analisis", lewat
- * webhook yang sama dengan /analisis-massal) dan navigasi Sebelumnya/
- * Selanjutnya supaya bisa direview satu-satu tanpa balik ke daftar. */
 export function FacilitatorAnalysisWorkbench({
   row,
   hari,
@@ -353,17 +282,9 @@ export function FacilitatorAnalysisWorkbench({
   mode: "alltime" | "harian";
   prevFacilitator: FacilitatorRef | null;
   nextFacilitator: FacilitatorRef | null;
-  /** Urutan (1-based) fasilitator ini di antara SEMUA fasilitator yang
-   * dipegang admin ybs (bukan seluruh 30 fasilitator kalau admin cuma pegang
-   * sebagian) - null kalau kode-nya entah kenapa tidak ketemu di daftar. */
   facilPosition: number | null;
   totalFacilitators: number;
-  /** Hasil Analisis yang SUDAH ADA di spreadsheet (tabel log harian) untuk
-   * hari ini — bisa null jika page.tsx merender tanpa Suspense (mode instan).
-   * Kalau null, komponen ini akan fetch sendiri via /api/analisis. */
   existingAnalisis: string | null;
-  /** Daftar nama provider AI yang sudah punya konfigurasi global (via env var di server).
-   * User tidak perlu memasukkan API key pribadi jika mereka memilih provider ini. */
   configuredProviders?: string[];
   history?: FacilRow[];
   dayLogs?: { log1: FacilRow | null; log2: FacilRow | null } | null;
@@ -392,7 +313,6 @@ export function FacilitatorAnalysisWorkbench({
   useEffect(() => {
     let savedProvider = localStorage.getItem("uwu_ai_provider") || "";
     if (!savedProvider) {
-      // Default to the first configured provider from server, or fallback to OpenAI
       savedProvider = configuredProviders.length > 0 ? configuredProviders[0] : "OpenAI";
     }
     setAiProvider(savedProvider);
@@ -401,7 +321,6 @@ export function FacilitatorAnalysisWorkbench({
       if (savedKeys) {
         setAiKeys(JSON.parse(savedKeys));
       } else {
-        // Fallback migrasi jika sebelumnya pakai single key
         const oldKey = localStorage.getItem("uwu_ai_key");
         if (oldKey) {
           setAiKeys({ [savedProvider]: oldKey });
@@ -412,13 +331,9 @@ export function FacilitatorAnalysisWorkbench({
     }
   }, [configuredProviders]);
 
-  // Jika existingAnalisis null (page.tsx merender INSTAN tanpa Suspense),
-  // fetch teks analisis yang sudah ada di spreadsheet secara CLIENT-SIDE.
-  // Ini menghilangkan skeleton loading — workbench langsung tampil, textarea
-  // terisi begitu API merespons (~1-2 detik kemudian, tanpa blocking UI).
   useEffect(() => {
-    if (existingAnalisis != null) return; // sudah dapat dari server
-    if (hasil.trim()) return; // sudah ada isian (dari generate / manual)
+    if (existingAnalisis != null) return;
+    if (hasil.trim()) return;
     let cancelled = false;
     fetch(`/api/analisis?kode=${encodeURIComponent(row.kodeFasil)}&hari=${hari}`)
       .then((r) => r.json())
@@ -427,7 +342,7 @@ export function FacilitatorAnalysisWorkbench({
           setHasil(data.analisis);
         }
       })
-      .catch(() => {}); // gagal-lunak, textarea tetap kosong
+      .catch(() => {});
     return () => { cancelled = true; };
   }, [existingAnalisis, row.kodeFasil, hari]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -442,9 +357,6 @@ export function FacilitatorAnalysisWorkbench({
   }
 
   async function generate() {
-    // Field ini bisa sudah berisi hasil sebelumnya (diedit manual, generate
-    // AI sebelumnya, ATAU ke-prefill dari spreadsheet lewat existingAnalisis
-    // di atas) - konfirmasi dulu supaya tidak ketimpa tanpa sengaja.
     if (hasil.trim() && !window.confirm("Ada isi di field Hasil Analisis (mungkin belum disimpan). Timpa dengan hasil generate AI yang baru?")) {
       return;
     }
@@ -470,13 +382,6 @@ export function FacilitatorAnalysisWorkbench({
     }
   }
 
-  /** Bikin teks prompt versi PANJANG (beda dari "Generate dengan AI" yang
-   * SENGAJA ringkas satu kalimat/poin - lihat catatan di buildFacilitatorCopyPromptText)
-   * lalu salin ke clipboard, dipakai admin buat paste manual ke Gemini Pro
-   * (atau chat LLM lain). Dihitung LANGSUNG di client dari `row` + `hari`
-   * yang sudah tersedia sebagai prop (sama seperti FacilKendalaPanel di file
-   * ini yang juga sudah hitung compliance client-side) - tidak perlu round-trip
-   * ke server. */
   async function copyPrompt() {
     setCopyState("copying");
     setCopyError(null);
@@ -519,11 +424,6 @@ export function FacilitatorAnalysisWorkbench({
       if (!res.ok) throw new Error(data.error || "Gagal menyimpan ke spreadsheet.");
       if ((data.updated ?? 0) === 0) {
         setSaveState("error");
-        // data.notFound (dari pushAnalysisToSheet) punya alasan SPESIFIK
-        // ("tabel log tidak ketemu", "gagal akses sheet", "baris hari ke-N
-        // tidak ketemu", dst, lihat lib/writeSheet.ts) - JANGAN dibuang,
-        // pesan generik di bawah cuma fallback kalau server tidak
-        // mengirimkannya sama sekali.
         const reason: string[] | undefined = data.notFound;
         setSaveError(
           reason && reason.length > 0
@@ -540,18 +440,18 @@ export function FacilitatorAnalysisWorkbench({
   }
 
   return (
-    <div className="flex max-h-[calc(100vh-3rem)] flex-col gap-4 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+    <div className="flex max-h-[calc(100vh-5rem)] flex-col gap-4 overflow-y-auto pr-1">
       {/* Bagian Navigasi */}
-      <div className="flex shrink-0 items-center justify-between gap-2 px-1 text-xs">
+      <div className="flex shrink-0 items-center justify-between gap-2 px-1 text-body-md">
         {prevFacilitator ? (
-          <Link href={facilHref(prevFacilitator.kodeFasil, hari, mode)} className="text-series-1 transition-opacity hover:opacity-80">
+          <Link href={facilHref(prevFacilitator.kodeFasil, hari, mode)} className="text-link hover:text-link-active font-medium">
             &larr; {prevFacilitator.namaFasil}
           </Link>
         ) : (
           <span className="text-ink-muted">&larr; (awal daftar)</span>
         )}
         {facilPosition != null && (
-          <span className="text-ink-muted" title={`Fasilitator ke-${facilPosition} dari ${totalFacilitators} yang Anda pegang`}>
+          <span className="text-xs text-ink-muted font-semibold" title={`Fasilitator ke-${facilPosition} dari ${totalFacilitators} yang Anda pegang`}>
             {facilPosition} / {totalFacilitators}
             {facilPosition < totalFacilitators && ` · ${totalFacilitators - facilPosition} lagi`}
           </span>
@@ -559,58 +459,60 @@ export function FacilitatorAnalysisWorkbench({
         {nextFacilitator ? (
           <Link
             href={facilHref(nextFacilitator.kodeFasil, hari, mode)}
-            className="flex items-center gap-1.5 rounded-md bg-series-1 px-3 py-1.5 font-medium text-white transition-all hover:bg-series-1/90 shadow-sm"
+            className="btn-primary !py-1.5 !px-3.5 !text-xs font-semibold"
           >
             Selanjutnya: {nextFacilitator.namaFasil} &rarr;
           </Link>
         ) : (
-          <span className="text-ink-muted">(akhir daftar) &rarr;</span>
+          <span className="text-ink-muted text-xs font-semibold">(akhir daftar) &rarr;</span>
         )}
       </div>
 
       {/* Bagian Hasil Analisis (Atas) */}
-      <div className="flex shrink-0 flex-col gap-3 rounded-xl border border-border bg-surface p-5 shadow-sm">
-        <div className="flex items-center justify-between gap-4 border-b border-gridline pb-3">
-          <label htmlFor="hasil-analisis" className="text-sm font-semibold text-ink-primary">
+      <div className="card shrink-0 p-5 flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline pb-3.5">
+          <label htmlFor="hasil-analisis" className="text-body-md font-semibold text-ink-primary">
             Hasil Analisis AI
           </label>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={copyPrompt}
               disabled={copyState === "copying"}
               title="Salin prompt-nya (lengkap dengan contoh format & data fasilitator ini) untuk di-paste manual ke Gemini Pro atau chat LLM lain"
-              className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-ink-secondary shadow-sm transition-all hover:border-series-1 hover:text-ink-primary disabled:opacity-50"
+              className="btn-secondary !py-1.5 !px-3 !text-xs disabled:opacity-50"
             >
               {copyState === "copying" ? "Menyiapkan..." : copyState === "done" ? "✓ Tersalin" : "Copy Prompt"}
             </button>
             <button
               onClick={() => setShowConfig(!showConfig)}
               title="Konfigurasi API Key Pribadi"
-              className="flex items-center gap-1 rounded-md border border-border px-2 py-1.5 text-xs text-ink-secondary hover:border-series-1 hover:text-ink-primary"
+              className="btn-secondary !py-1.5 !px-2.5 !text-xs"
             >
               ⚙️
             </button>
             <button
               onClick={generate}
               disabled={generating}
-              className="rounded-md bg-series-1 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-all hover:bg-series-1/90 disabled:opacity-50"
+              className="btn-primary !py-1.5 !px-3.5 !text-xs disabled:opacity-50"
             >
               {generating ? "Menganalisis..." : hasil ? "Generate Ulang" : "Generate dengan AI"}
             </button>
           </div>
         </div>
-        
+
         {showConfig && (
-          <div className="flex flex-col gap-2 rounded-md bg-background border border-border p-3 text-xs mb-2">
-            <div className="font-semibold text-ink-primary">Konfigurasi API Key Pribadi</div>
-            <div className="text-ink-secondary mb-1">Gunakan kunci API milik Anda sendiri agar tidak terbentur limit global.</div>
-            <div className="flex items-center gap-3">
-              <label className="flex flex-col gap-1 w-1/3">
-                <span className="font-medium text-ink-primary">Provider</span>
+          <div className="flex flex-col gap-3 rounded-[var(--radius-sm)] bg-surface-soft border border-hairline p-4 text-xs">
+            <div>
+              <div className="font-semibold text-ink-primary text-body-md">Konfigurasi API Key Pribadi</div>
+              <div className="text-ink-secondary mt-0.5">Gunakan kunci API milik Anda sendiri agar tidak terbentur limit global.</div>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <label className="flex flex-col gap-1 sm:w-1/3">
+                <span className="font-semibold text-ink-primary">Provider</span>
                 <select 
                   value={aiProvider} 
                   onChange={(e) => setAiProvider(e.target.value)}
-                  className="rounded border border-border px-2 py-1.5 bg-surface text-ink-primary focus:border-series-1 focus:outline-none"
+                  className="rounded-[var(--radius-sm)] border border-hairline px-2.5 py-1.5 bg-background text-ink-primary focus:border-info-border focus:outline-none"
                 >
                   <option value="Google Gemini">Google Gemini</option>
                   <option value="Groq">Groq</option>
@@ -619,45 +521,45 @@ export function FacilitatorAnalysisWorkbench({
                   <option value="OpenAI">OpenAI</option>
                 </select>
               </label>
-              <label className="flex flex-col gap-1 w-2/3">
-                <span className="font-medium text-ink-primary">API Key <span className="text-ink-muted text-[10px] font-normal">(opsional jika default)</span></span>
+              <label className="flex flex-col gap-1 sm:w-2/3">
+                <span className="font-semibold text-ink-primary">API Key <span className="text-ink-muted font-normal">(opsional jika default)</span></span>
                 <input 
                   type="password"
                   value={aiKeys[aiProvider] || ""}
                   onChange={(e) => handleKeyChange(e.target.value)}
                   placeholder={configuredProviders?.includes(aiProvider) ? "(Telah dikonfigurasi oleh Admin)" : `Masukkan API Key untuk ${aiProvider}`}
-                  className="rounded border border-border px-2 py-1.5 bg-surface text-ink-primary focus:border-series-1 focus:outline-none"
+                  className="rounded-[var(--radius-sm)] border border-hairline px-2.5 py-1.5 bg-background text-ink-primary focus:border-info-border focus:outline-none"
                 />
               </label>
             </div>
             {configuredProviders?.includes(aiProvider) && !aiKeys[aiProvider] && (
-              <p className="text-[10px] text-status-success font-medium">✓ Sistem sudah memiliki kunci bawaan untuk provider ini. Anda tidak perlu mengisinya.</p>
+              <p className="text-[11px] text-status-good font-semibold">✓ Sistem sudah memiliki kunci bawaan untuk provider ini. Anda tidak perlu mengisinya.</p>
             )}
             <button 
               onClick={saveConfig}
-              className="mt-1 w-fit rounded-md bg-series-1/10 px-3 py-1 font-medium text-series-1 hover:bg-series-1 hover:text-white transition-colors"
+              className="btn-secondary !w-fit !py-1.5 !px-3.5 !text-xs mt-1"
             >
               Simpan Konfigurasi
             </button>
           </div>
         )}
 
-        <div className="flex gap-4">
-          <span className="text-xs font-bold text-red-500">Harap cek ulang hasil generate analisis, karena AI nya bisa ngawur cok!</span>
+        <div>
+          <span className="text-xs font-bold text-status-critical">Harap cek ulang hasil generate analisis, karena AI nya bisa ngawur cok!</span>
         </div>
 
-        <div className="flex flex-col gap-2.5 rounded-lg border border-gridline bg-background p-3">
+        <div className="rounded-[var(--radius-sm)] border border-hairline bg-surface-soft p-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2.5">
               <span className="text-xs font-semibold text-ink-primary">Sumber Data Analisis:</span>
-              <div className="inline-flex rounded-md border border-border bg-surface text-xs font-medium">
+              <div className="inline-flex gap-0.5 rounded-[var(--radius-sm)] border border-hairline bg-background p-0.5 text-xs font-medium">
                 <button
                   type="button"
                   onClick={() => setLogSource("log1")}
                   disabled={!dayLogs?.log1 && !!dayLogs?.log2}
-                  className={`rounded px-2.5 py-1 transition-all ${
+                  className={`rounded-[var(--radius-xs)] px-3 py-1 transition-all ${
                     logSource === "log1"
-                      ? "bg-series-1 text-white shadow-sm font-semibold"
+                      ? "bg-primary text-on-primary font-semibold"
                       : "text-ink-secondary hover:text-ink-primary disabled:opacity-40"
                   }`}
                   title={!dayLogs?.log1 ? "Data Log 1 (07.00 WIB) kosong / belum tersedia" : "Gunakan data Log 1 Pagi (07.00 WIB)"}
@@ -668,9 +570,9 @@ export function FacilitatorAnalysisWorkbench({
                   type="button"
                   onClick={() => setLogSource("log2")}
                   disabled={!dayLogs?.log2 && !!dayLogs?.log1}
-                  className={`rounded px-2.5 py-1 transition-all ${
+                  className={`rounded-[var(--radius-xs)] px-3 py-1 transition-all ${
                     logSource === "log2"
-                      ? "bg-series-1 text-white shadow-sm font-semibold"
+                      ? "bg-primary text-on-primary font-semibold"
                       : "text-ink-secondary hover:text-ink-primary disabled:opacity-40"
                   }`}
                   title={!dayLogs?.log2 ? "Data Log 2 (13.30 WIB) kosong / belum tersedia" : "Gunakan data Log 2 Sore (13.30 WIB)"}
@@ -691,16 +593,16 @@ export function FacilitatorAnalysisWorkbench({
           }}
           placeholder='Tulis manual, atau klik "Generate dengan AI" di atas lalu edit hasilnya di sini...'
           rows={7}
-          className="resize-y rounded-md border border-border bg-background p-3 text-sm text-ink-primary placeholder:italic placeholder:text-ink-muted focus:border-series-1 focus:outline-none focus:ring-1 focus:ring-series-1"
+          className="resize-y rounded-[var(--radius-sm)] border border-hairline bg-background p-3.5 text-body-md text-ink-primary leading-relaxed placeholder:italic placeholder:text-ink-muted focus:border-info-border focus:outline-none"
         />
-        {genError && <p className="text-xs text-status-critical">{genError}</p>}
-        {copyError && <p className="text-xs text-status-critical">{copyError}</p>}
+        {genError && <p className="text-body-md text-status-critical font-medium">{genError}</p>}
+        {copyError && <p className="text-body-md text-status-critical font-medium">{copyError}</p>}
 
         <div className="flex flex-wrap items-center gap-3 pt-1">
           <button
             onClick={saveToSheet}
             disabled={saveState === "saving" || !hasil.trim()}
-            className="rounded-md bg-series-2 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-series-2/90 disabled:opacity-50"
+            className="btn-primary !py-2 !px-4 !text-xs font-semibold disabled:opacity-50"
           >
             {saveState === "saving" ? "Menyimpan..." : "Simpan ke Spreadsheet"}
           </button>
@@ -708,14 +610,14 @@ export function FacilitatorAnalysisWorkbench({
           <button
             onClick={copyAnalysis}
             disabled={copyAnalysisState === "copying" || !hasil.trim()}
-            className="rounded-md border border-border px-4 py-2 text-xs font-semibold text-ink-primary shadow-sm transition-all hover:bg-surface-hover hover:border-series-1 disabled:opacity-50"
+            className="btn-secondary !py-2 !px-4 !text-xs font-semibold disabled:opacity-50"
           >
             {copyAnalysisState === "copying" ? "Menyalin..." : copyAnalysisState === "done" ? "✓ Tersalin" : "Copy Analisis"}
           </button>
 
-          {saveState === "done" && <span className="text-xs font-medium text-status-good">✓ Tersimpan (Kolom Analisis Hari {hari})</span>}
-          {saveState === "error" && <span className="text-xs text-status-critical">{saveError}</span>}
-          {copyAnalysisError && <span className="text-xs text-status-critical">{copyAnalysisError}</span>}
+          {saveState === "done" && <span className="text-xs font-semibold text-status-good">✓ Tersimpan (Kolom Analisis Hari {hari})</span>}
+          {saveState === "error" && <span className="text-xs text-status-critical font-medium">{saveError}</span>}
+          {copyAnalysisError && <span className="text-xs text-status-critical font-medium">{copyAnalysisError}</span>}
         </div>
       </div>
     </div>

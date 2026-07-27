@@ -22,11 +22,11 @@ export function ReportActions({ text, filename }: { text: string; filename: stri
   }
 
   return (
-    <div className="flex gap-2">
-      <button onClick={copy} className="rounded-md bg-series-1 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90">
+    <div className="flex gap-3">
+      <button onClick={copy} className="btn-primary !py-2 !px-4 !text-xs">
         {copied ? "Tersalin!" : "Salin sebagai Teks"}
       </button>
-      <button onClick={download} className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink-primary">
+      <button onClick={download} className="btn-secondary !py-2 !px-4 !text-xs">
         Unduh .txt
       </button>
     </div>

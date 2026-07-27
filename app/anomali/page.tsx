@@ -15,16 +15,16 @@ export default async function AnomaliPage() {
   for (const r of reports) for (const item of r.items) byType.set(item.type, (byType.get(item.type) ?? 0) + 1);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-lg font-semibold">Deteksi Anomali</h1>
-        <p className="text-sm text-ink-secondary">
+        <h1 className="text-title-lg text-ink-primary">Deteksi Anomali</h1>
+        <p className="mt-1 text-body-md text-ink-secondary">
           Dipindai per Hari ke-{todayHari} (hari ini). Membandingkan status login LK, konsistensi Hasil LK vs
           Aplikasi, catatan Kendala yang kontradiktif, dan data yang mendahului hari ini.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatTile
           label="Fasilitator dengan Anomali"
           value={`${reports.length}/${totalFacilitators}`}
@@ -36,7 +36,7 @@ export default async function AnomaliPage() {
       </div>
 
       {(byType.get("lk_aplikasi_mismatch") ?? 0) >= totalFacilitators * 0.8 && (
-        <div className="rounded-md border border-status-warning/40 bg-status-warning/10 px-3 py-2 text-sm text-[#8a5a00] dark:text-status-warning">
+        <div className="rounded-[var(--radius-sm)] border border-status-warning/40 bg-status-warning/10 px-4 py-2.5 text-body-md text-status-warning">
           Hampir semua fasilitator kena &ldquo;LK vs Aplikasi tidak konsisten&rdquo; untuk indikator Perencana - ini
           kemungkinan besar bukan masalah per-fasilitator, tapi kolom &ldquo;% Sekolah Tidak Memiliki Perencana
           (Aplikasi)&rdquo; yang belum benar-benar terisi di seluruh program (nilainya 100% di semua baris).
@@ -44,13 +44,13 @@ export default async function AnomaliPage() {
       )}
 
       {reports.length === 0 ? (
-        <p className="text-sm text-ink-muted">Tidak ada anomali terdeteksi.</p>
+        <p className="text-body-md text-ink-muted">Tidak ada anomali terdeteksi.</p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           {reports.map((r) => (
-            <div key={r.kodeFasil} className="rounded-lg border border-border bg-surface p-4">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <Link href={`/fasilitator/${r.kodeFasil}?hari=${todayHari}`} className="font-medium text-series-1 hover:underline">
+            <div key={r.kodeFasil} className="card p-5">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <Link href={`/fasilitator/${r.kodeFasil}?hari=${todayHari}`} className="font-medium text-link hover:text-link-active">
                   {r.namaFasil}
                 </Link>
                 <span className="text-xs text-ink-muted">{r.kodeFasil}</span>

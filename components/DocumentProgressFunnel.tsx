@@ -15,17 +15,17 @@ function StageBox({ stage, value, caption, compact }: StageBoxData & { compact?:
   const s = value == null ? null : TIER_STYLES[classifySeverity(value, "higherIsBetter").tier];
   if (compact) {
     return (
-      <div className={`flex-1 rounded-md border border-border px-2 py-1.5 ${s?.bg ?? "bg-background"}`}>
-        <div className="text-[10px] leading-tight text-ink-secondary">{stage}</div>
-        <div className={`text-base font-semibold leading-tight tabular-nums ${s?.text ?? "text-ink-muted"}`}>{value == null ? "-" : `${value}%`}</div>
+      <div className={`flex-1 rounded-[var(--radius-sm)] border border-hairline px-2.5 py-2 ${s?.bg ?? "bg-background"}`}>
+        <div className="text-[11px] leading-tight text-ink-secondary">{stage}</div>
+        <div className={`mt-0.5 text-base font-semibold leading-tight tabular-nums ${s?.text ?? "text-ink-muted"}`}>{value == null ? "-" : `${value}%`}</div>
       </div>
     );
   }
   return (
-    <div className={`flex-1 rounded-lg border border-border p-3 ${s?.bg ?? "bg-background"}`}>
-      <div className="text-xs text-ink-secondary">{stage}</div>
-      <div className={`mt-1 text-2xl font-semibold tabular-nums ${s?.text ?? "text-ink-muted"}`}>{value == null ? "-" : `${value}%`}</div>
-      <div className="mt-0.5 text-[11px] text-ink-muted">{caption}</div>
+    <div className={`flex-1 rounded-[var(--radius-md)] border border-hairline p-4 ${s?.bg ?? "bg-background"}`}>
+      <div className="text-body-md text-ink-secondary">{stage}</div>
+      <div className={`mt-1 text-title-lg font-medium tabular-nums ${s?.text ?? "text-ink-muted"}`}>{value == null ? "-" : `${value}%`}</div>
+      <div className="mt-1 text-xs text-ink-muted">{caption}</div>
     </div>
   );
 }
@@ -33,11 +33,11 @@ function StageBox({ stage, value, caption, compact }: StageBoxData & { compact?:
 function StageRow({ kategori, boxes, compact }: { kategori: DocKategori; boxes: StageBoxData[]; compact?: boolean }) {
   if (compact) {
     return (
-      <div className="rounded-lg border border-border bg-surface p-2.5">
-        <h3 className="mb-1.5 text-xs font-semibold text-ink-primary">Dokumen {kategori}</h3>
-        <div className="flex items-stretch gap-1.5">
+      <div className="card p-3.5">
+        <h3 className="mb-2 text-xs font-semibold text-ink-primary">Dokumen {kategori}</h3>
+        <div className="flex items-stretch gap-2">
           {boxes.map((b, i) => (
-            <div key={b.stage} className="flex items-stretch gap-1.5">
+            <div key={b.stage} className="flex flex-1 items-stretch gap-2">
               <StageBox {...b} compact />
               {i < boxes.length - 1 && <span className="self-center text-xs text-ink-muted">→</span>}
             </div>
@@ -47,13 +47,13 @@ function StageRow({ kategori, boxes, compact }: { kategori: DocKategori; boxes: 
     );
   }
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
-      <h3 className="mb-3 text-sm font-semibold text-ink-primary">Dokumen {kategori}</h3>
-      <div className="flex items-stretch gap-2">
+    <div className="card-lg p-5">
+      <h3 className="mb-4 text-title-sm text-ink-primary">Dokumen {kategori}</h3>
+      <div className="flex items-stretch gap-3">
         {boxes.map((b, i) => (
-          <div key={b.stage} className="flex items-stretch gap-2">
+          <div key={b.stage} className="flex flex-1 items-stretch gap-3">
             <StageBox {...b} />
-            {i < boxes.length - 1 && <span className="self-center text-ink-muted">→</span>}
+            {i < boxes.length - 1 && <span className="self-center text-ink-muted font-medium">→</span>}
           </div>
         ))}
       </div>

@@ -28,7 +28,7 @@ export function DaySelector({
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2">
       <div className="flex flex-wrap gap-1.5">
         {days.map((d) => {
           const active = d === current;
@@ -44,16 +44,16 @@ export function DaySelector({
               key={d}
               href={hrefFor(d)}
               title={title}
-              className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+              className={`rounded-[var(--radius-md)] border px-3 py-1 text-body-md transition-colors ${
                 active
                   ? missingAnalysis
                     ? "border-status-critical bg-status-critical text-white"
-                    : "border-series-1 bg-series-1 text-white"
+                    : "border-primary bg-primary text-on-primary"
                   : future
-                    ? "border-border text-ink-muted opacity-50 hover:opacity-80"
+                    ? "border-hairline text-ink-muted opacity-50 hover:opacity-80"
                     : missingAnalysis
                       ? "border-status-critical/50 bg-status-critical/10 text-status-critical hover:border-status-critical"
-                      : "border-border text-ink-secondary hover:border-baseline"
+                      : "border-hairline text-ink-secondary hover:border-border-strong"
               }`}
             >
               {missingAnalysis && "⚠ "}Hari {d}

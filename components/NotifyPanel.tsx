@@ -34,22 +34,22 @@ export function NotifyPanel() {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-surface p-4">
+    <div className="card p-5">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-ink-primary">Notifikasi Otomatis</h3>
+        <h3 className="text-title-sm text-ink-primary">Notifikasi Otomatis</h3>
         <button
           onClick={check}
           disabled={loading}
-          className="rounded-md bg-series-1 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+          className="btn-primary !py-1.5 !px-4 !text-xs disabled:opacity-50"
         >
           {loading ? "Mengecek..." : "Cek Sekarang"}
         </button>
       </div>
 
-      {error && <div className="rounded-md bg-status-critical/10 px-3 py-2 text-sm text-status-critical">{error}</div>}
+      {error && <div className="rounded-[var(--radius-sm)] bg-status-critical/10 px-3.5 py-2 text-body-md text-status-critical">{error}</div>}
 
       {result && (
-        <div className="flex flex-col gap-2 text-sm">
+        <div className="flex flex-col gap-2 text-body-md">
           {result.firstRun ? (
             <p className="text-ink-secondary">
               Baseline pertama disimpan: {result.totalSignatures} temuan tercatat per Hari {result.todayHari}. Belum
@@ -78,7 +78,7 @@ export function NotifyPanel() {
       )}
 
       {!result && !error && (
-        <p className="text-sm text-ink-muted">
+        <p className="text-body-md text-ink-muted">
           Memindai anomali &amp; checkpoint yang belum sesuai, lalu mengirim ke channel yang dikonfigurasi (lihat
           .env.local.example: <code className="font-mono">NOTIFY_WEBHOOK_URL</code> atau{" "}
           <code className="font-mono">RESEND_API_KEY</code>) hanya untuk temuan yang baru sejak pengecekan

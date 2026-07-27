@@ -2,7 +2,7 @@ import type { RiskLevel } from "@uwu/core/metrics";
 
 const STYLES: Record<RiskLevel, { label: string; dot: string; text: string; bg: string }> = {
   rendah: { label: "Rendah", dot: "bg-status-good", text: "text-status-good", bg: "bg-status-good/10" },
-  sedang: { label: "Sedang", dot: "bg-status-warning", text: "text-[#8a5a00] dark:text-status-warning", bg: "bg-status-warning/15" },
+  sedang: { label: "Sedang", dot: "bg-status-warning", text: "text-status-warning", bg: "bg-status-warning/15" },
   tinggi: { label: "Tinggi", dot: "bg-status-critical", text: "text-status-critical", bg: "bg-status-critical/10" },
   unknown: { label: "Tidak diketahui", dot: "bg-status-unknown", text: "text-ink-muted", bg: "bg-status-unknown/10" },
 };
@@ -29,7 +29,7 @@ export function RiskBadge({
     return (
       <span
         title={detail ? `${s.label} · ${detail}` : s.label}
-        className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${s.bg} ${s.text}`}
+        className={`inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-1.5 py-0.5 text-[10px] font-medium ${s.bg} ${s.text}`}
       >
         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${s.dot}`} aria-hidden />
         {s.label}
@@ -38,7 +38,7 @@ export function RiskBadge({
   }
 
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${s.bg} ${s.text}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-1 text-xs font-medium ${s.bg} ${s.text}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} aria-hidden />
       {s.label}
       {detail && <span className="text-ink-muted">· {detail}</span>}

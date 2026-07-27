@@ -14,22 +14,22 @@ export default async function ProgresDokumenPage() {
     .filter((r): r is NonNullable<typeof r> => !!r);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-lg font-semibold">Progres Dokumen</h1>
-        <p className="text-sm text-ink-secondary">
+        <h1 className="text-title-lg text-ink-primary">Progres Dokumen</h1>
+        <p className="mt-1 text-body-md text-ink-secondary">
           Kondisi terkini (per Hari ke-{todayHari}) tiap fasilitator, supaya penurunan persentase dari dokumen yang
           sekadar terunggah sampai yang benar-benar dinyatakan sesuai kelihatan jelas per tahap - baik untuk Dokumen
           Admin maupun Dokumen Teknis.
         </p>
       </div>
 
-      <div className="rounded-lg border border-border bg-surface p-3.5">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">Acuan warna</p>
+      <div className="card p-5">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-muted">Acuan warna</p>
         <SeverityLegend />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <DocumentProgressFunnel rows={currentRows} kategori="Admin" />
         <DocumentProgressFunnel rows={currentRows} kategori="Teknis" />
       </div>
