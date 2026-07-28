@@ -1,4 +1,5 @@
 import { activeCheckpoints, buildKnowledgeSummary, TOTAL_HARI_SIKLUS } from "./knowledge/checkpoints";
+import type { CheckpointIndicator } from "./knowledge/checkpoints";
 import { getEffectiveRisk, summarizeDay } from "./metrics";
 import { getCheckpointCompliance, countNonCompliant } from "./compliance";
 import type { CheckpointCompliance } from "./compliance";
@@ -314,12 +315,21 @@ function buildQualitativeNotes(history: FacilRow[]): string {
  */
 export function buildFacilitatorAnalysisMessages(
   history: FacilRow[],
-  options?: { anomalyFields?: Set<keyof FacilRow>; targetHari?: number }
+  options?: { anomalyFields?: Set<keyof FacilRow>; targetHari?: number; prevRow?: FacilRow | null }
 ): ChatMessage[] {
   if (history.length === 0) throw new Error("Tidak ada data histori untuk fasilitator ini.");
-  const latest = history[history.length - 1];
-  const maxDay = latest.hari;
-  const data = buildFacilNarrativeData(latest, maxDay);
+  // Cari baris untuk `targetHari` SPESIFIK (bukan asumsi "elemen terakhir
+  // array = hari yang dimaksud") - `history` yang dikirim client bisa berisi
+  // hari-hari SETELAH hari yang lagi dianalisis (mis. baris kosong hari
+  // berikutnya yang sudah ter-generate otomatis di masterLog), jadi elemen
+  // terakhir array TIDAK SELALU sama dengan hari target. Kalau ini diabaikan,
+  // narasi bisa memakai data hari/log slot yang salah walau admin sudah
+  // memilih Log 1/Log 2 yang benar di UI (lihat activeRow di
+  // FacilitatorAnalysisWorkbench.tsx) - fallback ke elemen terakhir cuma
+  // kalau targetHari tidak diberikan sama sekali.
+  const maxDay = options?.targetHari ?? history[history.length - 1].hari;
+  const latest = history.find((r) => r.hari === maxDay) ?? history[history.length - 1];
+  const data = buildFacilNarrativeData(latest, maxDay, options?.prevRow);
 
   const userPrompt = `Tolong tulis analisis naratif untuk SATU fasilitator lapangan, PERSIS meniru gaya, struktur, dan urutan paragraf dari "CONTOH REFERENSI" di bawah - tapi SELURUH angka harus berasal dari "DATA FASILITATOR" (JSON) di bawahnya, JANGAN sekali-kali memakai angka dari contoh referensi.
 
@@ -508,29 +518,29 @@ function findLastFilledDay(row: FacilRow): number {
 
 const FACIL_NARRATIVE_REFERENCE_EXAMPLE = `Fasil ini hanya mengisi LK Fasil sampai hari ke-4.
 
-Nilai capaian fasil atas Muhammad Haditya Yervan berada di angka 26.41 karena banyak checkpoint yang capaiannya masih rendah.
+Nilai capaian fasil atas Muhammad Haditya Yervan berada di angka 26.41 karena banyak checkpoint yang capaiannya masih rendah. Tidak ada perubahan/perkembangan dari hari kemarin, tetap di angka 26.41.
 
-Checkpoint wajib untuk hari ke-12 yaitu seluruh sekolah telah sepakat RAB (Final Checkpoint). Namun, sampai saat ini tidak ada sekolah yang sudah sepakat RAB. Beberapa hal yang berpengaruh terhadap capaian tersebut adalah belum tercapainya checkpoint perencana dan rendahnya angka unggah dan verifikasi dokumen teknis.
+Checkpoint wajib untuk hari ke-12 yaitu seluruh sekolah telah sepakat RAB. Namun, hingga hari ke-20 ini, masih terdapat 19 sekolah yang belum sepakat RAB (100%). Beberapa hal yang berpengaruh terhadap capaian tersebut adalah belum tercapainya checkpoint perencana dan rendahnya angka unggah dan verifikasi dokumen teknis. Tidak ada perubahan/perkembangan dari hari kemarin, tetap di angka 100%.
 
-Sekolah login aplikasi: Masih ada 5 sekolah yang belum login ke aplikasi (78.95% sekolah yang sudah login aplikasi). Artinya ada 5 sekolah yang pasti belum mengunggah dokumen admin dan teknisnya.
+Sekolah login aplikasi: Masih ada 5 sekolah yang belum login ke aplikasi (78.95% sekolah yang sudah login aplikasi). Artinya ada 5 sekolah yang pasti belum mengunggah dokumen admin dan teknisnya. Ada perubahan dari hari kemarin, dari angka 63.16% naik menjadi 78.95%.
 
-Perencana: Masih ada 14 sekolah yang belum memiliki perencana sehingga sekolah belum dapat menyelesaikan penyusunan dokumen admin dan memulai menyusun dokumen teknis. Kendala terkait perencana tidak teridentifikasi karena fasil tidak mengisi informasi terkait perencana di LK Fasil.
+Perencana: Masih ada 14 sekolah yang belum memiliki perencana sehingga sekolah belum dapat menyelesaikan penyusunan dokumen admin dan memulai menyusun dokumen teknis. Kendala terkait perencana tidak teridentifikasi karena fasil tidak mengisi informasi terkait perencana di LK Fasil. Tidak ada perubahan/perkembangan dari hari kemarin, tetap di angka 30.0%.
 
-Unggah dokumen teknis: Baru sekitar 16 dari 120 dokumen teknis yang terunggah (14.04% rata-rata dokumen teknis terunggah). Artinya masih sekitar 104 dokumen yang harus ditagih untuk segera diunggah. Angka minimal persen terunggah menunjukan masih adanya sekolah yang belum mengunggah satupun dokumen (0% minimal dokumen teknis terunggah). Kendala terkait unggah dokumen teknis tidak teridentifikasi karena fasil tidak mengisi informasi terkait hal di LK Fasil.
+Unggah dokumen teknis: Baru sekitar 16 dari 120 dokumen teknis yang terunggah (14.04% rata-rata dokumen teknis terunggah). Artinya masih sekitar 104 dokumen yang harus ditagih untuk segera diunggah. Angka minimal persen terunggah menunjukan masih adanya sekolah yang belum mengunggah satupun dokumen (0% minimal dokumen teknis terunggah). Kendala terkait unggah dokumen teknis tidak teridentifikasi karena fasil tidak mengisi informasi terkait hal di LK Fasil. Ada perubahan dari hari kemarin, dari angka 10.53% naik menjadi 14.04%.
 
-Verifikasi dokumen teknis: Dari sekitar 16 dokumen teknis yang terunggah, belum ada dokumen teknis yang terverifikasi oleh fasil (0% rata-rata dok. teknis terverifikasi). Kendala terkait verifikasi dokumen teknis tidak teridentifikasi karena fasil tidak mengisi informasi terkait hal ini di LK Fasil.
+Verifikasi dokumen teknis: Dari sekitar 16 dokumen teknis yang terunggah, belum ada dokumen teknis yang terverifikasi oleh fasil (0% rata-rata dok. teknis terverifikasi). Kendala terkait verifikasi dokumen teknis tidak teridentifikasi karena fasil tidak mengisi informasi terkait hal ini di LK Fasil. Tidak ada perubahan/perkembangan dari hari kemarin, tetap di angka 0%.
 
-Verifikasi dokumen teknis "Sesuai": Belum ada dokumen teknis yang terverifikasi.
+Verifikasi dokumen teknis "Sesuai": Belum ada dokumen teknis yang terverifikasi. Tidak ada perubahan/perkembangan dari hari kemarin, tetap di angka 0%.
 
-Unggah dokumen admin: Baru sekitar 150 dari 220 dokumen admin yang terunggah (68.42% rata-rata dokumen admin terunggah). Artinya masih sekitar 70 dokumen yang harus ditagih untuk segera diunggah. Angka minimal persen terunggah menunjukan adanya sekolah yang belum mengunggah sama sekali dari 11 dokumen (0% minimal dokumen admin terunggah). Kendala terkait unggah dokumen admin adalah dokumen belum tersedia lengkap di sekolah (Sumber: LK Fasil).
+Unggah dokumen admin: Baru sekitar 150 dari 220 dokumen admin yang terunggah (68.42% rata-rata dokumen admin terunggah). Artinya masih sekitar 70 dokumen yang harus ditagih untuk segera diunggah. Angka minimal persen terunggah menunjukan adanya sekolah yang belum mengunggah sama sekali dari 11 dokumen (0% minimal dokumen admin terunggah). Kendala terkait unggah dokumen admin adalah dokumen belum tersedia lengkap di sekolah (Sumber: LK Fasil). Ada perubahan dari hari kemarin, dari angka 60.10% naik menjadi 68.42%.
 
-Verifikasi dokumen admin: Dari sekitar 150 dokumen admin yang terunggah, yang sudah terverifikasi oleh fasil sekitar 76 dokumen (51.20% rata-rata dokumen admin terverifikasi). Artinya masih sekitar 74 dokumen admin yang harus segera diverifikasi.
+Verifikasi dokumen admin: Dari sekitar 150 dokumen admin yang terunggah, yang sudah terverifikasi oleh fasil sekitar 76 dokumen (51.20% rata-rata dokumen admin terverifikasi). Artinya masih sekitar 74 dokumen admin yang harus segera diverifikasi. Tidak ada perubahan/perkembangan dari hari kemarin, tetap di angka 51.20%.
 
-Verifikasi dokumen admin "Sesuai": Dari sekitar 76 dokumen admin yang terverifikasi oleh fasil, baru sekitar 35 dokumen admin yang terverifikasi dengan status "Sesuai" (46.89% rata dokumen admin terverifikasi "Sesuai").
+Verifikasi dokumen admin "Sesuai": Dari sekitar 76 dokumen admin yang terverifikasi oleh fasil, baru sekitar 35 dokumen admin yang terverifikasi dengan status "Sesuai" (46.89% rata dokumen admin terverifikasi "Sesuai"). Ada perubahan dari hari kemarin, dari angka 40.02% naik menjadi 46.89%.
 
 Catatan lain:
-Biodata: Masih 8 sekolah yang belum terverifikasi "Sesuai" biodatanya (63.16% sekolah biodata sudah terverifikasi sesuai).
-Dapodik: Seluruh sekolah yang data dapodiknya belum sesuai rincian menu yang dibutuhkan tidak bisa mengupdate Dapodik dikarenakan Dapodik terkunci (Sumber: LK Fasil).`;
+Biodata: Masih 8 sekolah yang belum terverifikasi "Sesuai" biodatanya (63.16% sekolah biodata sudah terverifikasi sesuai). Tidak ada perubahan/perkembangan dari hari kemarin, tetap di angka 63.16%.
+Dapodik: Seluruh sekolah yang data dapodiknya belum sesuai rincian menu yang dibutuhkan tidak bisa mengupdate Dapodik dikarenakan Dapodik terkunci (Sumber: LK Fasil). Ada perubahan dari hari kemarin, dari angka 20.0% turun menjadi 15.0%.`;
 
 /**
  * Data & instruksi naratif BERSAMA untuk SATU fasilitator - dipakai baik oleh
@@ -542,7 +552,20 @@ Dapodik: Seluruh sekolah yang data dapodiknya belum sesuai rincian menu yang dib
  * hasil "Generate dengan AI" dan "Copy Prompt" konsisten (model LLM-nya sama,
  * jangan sampai instruksinya beda).
  */
-function buildFacilNarrativeData(row: FacilRow, hari: number) {
+/** Persentase & jumlah sekolah yang BELUM mencapai target indikator UTAMA
+ * (indicators[0]) suatu checkpoint - dipakai untuk kalimat "Namun, hingga
+ * hari ke-X ini, terdapat N sekolah yang belum ..." (lihat FACIL_NARRATIVE_INSTRUCTIONS
+ * poin 1c). DIHITUNG DI KODE (bukan diserahkan ke LLM) mengikuti pola yang
+ * sama dengan field lain di file ini - LLM tinggal menyalin angkanya.
+ * polarity "higherIsBetter" berarti nilaiSheet ITU SENDIRI sudah "% sudah
+ * tercapai" (perlu dibalik 100-x jadi "% belum"), sebaliknya (default/
+ * "higherIsWorse") nilaiSheet SUDAH berupa "% belum" langsung. */
+function belumMencapaiFor(indicator: CheckpointIndicator, row: FacilRow, totalSekolah: number): { persen: number; jumlah: number } {
+  const persen = indicator.polarity === "higherIsBetter" ? invertPct(row[indicator.kolom]) : numOrZero(row[indicator.kolom]);
+  return { persen, jumlah: absFromPct(persen, totalSekolah) };
+}
+
+function buildFacilNarrativeDataBase(row: FacilRow, hari: number) {
   const { totalSekolah, totalDokTeknis, totalDokAdmin } = getFacilitatorTotals(row);
   const compliance = getCheckpointCompliance(row, hari);
   const dueCheckpoints = activeCheckpoints(hari); // urut ascending activeFromDay
@@ -561,6 +584,8 @@ function buildFacilNarrativeData(row: FacilRow, hari: number) {
   const barisPembukaMacet =
     hariTerakhirDiisiFasil < TOTAL_HARI_SIKLUS ? `Fasil ini hanya mengisi LK Fasil sampai hari ke-${hariTerakhirDiisiFasil}.` : null;
 
+  const belumMencapai = currentGroup ? belumMencapaiFor(currentGroup.indicators[0], row, totalSekolah) : null;
+
   return {
     fasilitator: row.namaFasil,
     kodeFasil: row.kodeFasil,
@@ -573,14 +598,13 @@ function buildFacilNarrativeData(row: FacilRow, hari: number) {
     // ampuh mencegah itu: jangan kasih bahan mentahnya sama sekali - LLM
     // cuma lihat barisPembukaMacet yang SUDAH JADI (teks atau null).
     //
-    // `hariIni` SENDIRI dikembalikan ke JSON (sempat dihapus bareng
-    // hariTerakhirDiisiFasil di atas) - tanpa ini LLM tidak punya angka hari
-    // berjalan sama sekali untuk kalimat "Checkpoint wajib untuk hari ke-X",
-    // dan terbukti malah memakai checkpointWajibHariIni.aktifSejakHari (hari
-    // checkpoint itu MULAI berlaku, mis. 12) alih-alih hari berjalan
-    // sesungguhnya (mis. 17) - dua angka itu beda kalau checkpoint yang
-    // sedang berlaku bukan yang PERSIS jatuh tempo hari ini. Instruksi di
-    // bawah eksplisit membatasi field ini HANYA untuk kalimat itu.
+    // `hariIni` dipakai HANYA untuk kalimat "Namun, hingga hari ke-{hariIni}
+    // ini, ..." (hari berjalan SESUNGGUHNYA, mis. 22) - BUKAN lagi untuk "X"
+    // di "Checkpoint wajib untuk hari ke-X" (itu sekarang WAJIB pakai
+    // checkpointWajibHariIni.aktifSejakHari, hari checkpoint ini MULAI
+    // berlaku, mis. 12 - lihat FACIL_NARRATIVE_INSTRUCTIONS poin 1c). Dua
+    // angka itu SENGAJA dipisah ke dua kalimat berbeda supaya keduanya tetap
+    // kebaca (dulu cuma satu kalimat, terpaksa pilih salah satu).
     hariIni: hari,
     barisPembukaMacet,
     skorAkhir: typeof row.skorAkhir === "number" ? row.skorAkhir : null,
@@ -591,6 +615,8 @@ function buildFacilNarrativeData(row: FacilRow, hari: number) {
           aktifSejakHari: currentGroup.activeFromDay,
           statusSaatIni: currentCompliance?.status ?? "unknown",
           indikator: currentGroup.indicators.map((i) => ({ label: i.definisi, nilaiSheet: row[i.kolom] })),
+          belumMencapaiPersen: belumMencapai!.persen,
+          belumMencapaiJumlah: belumMencapai!.jumlah,
         }
       : "(belum ada checkpoint yang berlaku sampai hari ini)",
     sekolahLoginAplikasi: {
@@ -654,18 +680,126 @@ function buildFacilNarrativeData(row: FacilRow, hari: number) {
   };
 }
 
+/** Bandingkan satu angka persen HARI INI vs Log SLOT YANG SAMA di hari
+ * sebelumnya (mis. Log 2 hari ke-22 vs Log 2 hari ke-21 - BUKAN Log 1 hari
+ * ke-22), lalu hasilkan SATU kalimat siap-pakai yang tinggal disalin LLM
+ * APA ADANYA di belakang poinnya - DIHITUNG DI KODE supaya LLM tidak perlu
+ * (dan tidak boleh) menghitung selisihnya sendiri. `prevPersen` null berarti
+ * tidak ada data Log slot yang sama di hari sebelumnya untuk dibandingkan
+ * (mis. Hari 1, atau fasilitator baru mulai isi Log 2 hari ini). */
+function bandingHariSebelumnya(currPersenRaw: number, prevPersenRaw: number | null): string {
+  // Dibulatkan ke 2 desimal DULU, SEBELUM dibandingkan maupun ditampilkan -
+  // supaya angka yang dipakai untuk memutuskan naik/turun/tetap PERSIS SAMA
+  // dengan angka yang ditampilkan di kalimatnya. Sebelumnya cuma selisihnya
+  // yang dibulatkan (bukan kedua angka sumbernya) - kalau angka mentahnya
+  // berdesimal panjang (mis. 0.031% vs 0.082%), selisihnya bisa lolos ambang
+  // 0.05 dan disimpulkan "naik", tapi begitu ditampilkan/dibulatkan lagi ke
+  // 2 desimal keduanya bisa kebaca sama (mis. "0.03%" vs "0.08%" masih beda,
+  // tapi kalau LLM lanjut membulatkan sendiri ke bilangan bulat - kebiasaan
+  // umum utk angka kecil - jadi "0%" vs "0%" yang kontradiktif dengan kata
+  // "naik" - dikonfirmasi nyata terjadi di produksi). Membulatkan di sini
+  // (satu-satunya sumber kebenaran) menghilangkan kemungkinan itu di akar.
+  const currPersen = parseFloat(currPersenRaw.toFixed(2));
+  if (prevPersenRaw == null) return `Tidak ada data hari sebelumnya untuk dibandingkan (saat ini ${currPersen}%).`;
+  const prevPersen = parseFloat(prevPersenRaw.toFixed(2));
+  const diff = parseFloat((currPersen - prevPersen).toFixed(2));
+  if (Math.abs(diff) < 0.05) return `Tidak ada perubahan/perkembangan dari hari kemarin, tetap di angka ${currPersen}%.`;
+  const arah = diff > 0 ? "naik" : "turun";
+  return `Ada perubahan dari hari kemarin, dari angka ${prevPersen}% ${arah} menjadi ${currPersen}%.`;
+}
+
+type FacilNarrativeBase = ReturnType<typeof buildFacilNarrativeDataBase>;
+
+/** Tempel field "bandingHariSebelumnya" di tiap kategori metrik - dipakai
+ * bareng `bandingHariSebelumnya()` di atas. `prev` null kalau tidak ada
+ * pembanding Log slot yang sama di hari sebelumnya (lihat buildFacilNarrativeData). */
+function withDayOverDayDeltas(base: FacilNarrativeBase, prev: FacilNarrativeBase | null) {
+  const prevCp = prev && typeof prev.checkpointWajibHariIni === "object" ? prev.checkpointWajibHariIni : null;
+  const currCp = typeof base.checkpointWajibHariIni === "object" ? base.checkpointWajibHariIni : null;
+
+  return {
+    ...base,
+    skorAkhirBandingHariSebelumnya:
+      base.skorAkhir != null && prev?.skorAkhir != null ? bandingHariSebelumnya(base.skorAkhir, prev.skorAkhir) : "Tidak ada data hari sebelumnya untuk dibandingkan.",
+    checkpointWajibHariIni: currCp
+      ? { ...currCp, bandingHariSebelumnya: bandingHariSebelumnya(currCp.belumMencapaiPersen, prevCp?.belumMencapaiPersen ?? null) }
+      : base.checkpointWajibHariIni,
+    sekolahLoginAplikasi: {
+      ...base.sekolahLoginAplikasi,
+      bandingHariSebelumnya: bandingHariSebelumnya(base.sekolahLoginAplikasi.sudahLoginPersen, prev?.sekolahLoginAplikasi.sudahLoginPersen ?? null),
+    },
+    perencana: {
+      ...base.perencana,
+      bandingHariSebelumnya: bandingHariSebelumnya(base.perencana.sudahPunyaPersen, prev?.perencana.sudahPunyaPersen ?? null),
+    },
+    dokumenTeknis: {
+      ...base.dokumenTeknis,
+      unggahBandingHariSebelumnya: bandingHariSebelumnya(base.dokumenTeknis.unggahPersen, prev?.dokumenTeknis.unggahPersen ?? null),
+      verifikasiBandingHariSebelumnya: bandingHariSebelumnya(base.dokumenTeknis.verifikasiPersen, prev?.dokumenTeknis.verifikasiPersen ?? null),
+      sesuaiBandingHariSebelumnya: bandingHariSebelumnya(base.dokumenTeknis.sesuaiPersen, prev?.dokumenTeknis.sesuaiPersen ?? null),
+    },
+    dokumenAdmin: {
+      ...base.dokumenAdmin,
+      unggahBandingHariSebelumnya: bandingHariSebelumnya(base.dokumenAdmin.unggahPersen, prev?.dokumenAdmin.unggahPersen ?? null),
+      verifikasiBandingHariSebelumnya: bandingHariSebelumnya(base.dokumenAdmin.verifikasiPersen, prev?.dokumenAdmin.verifikasiPersen ?? null),
+      sesuaiBandingHariSebelumnya: bandingHariSebelumnya(base.dokumenAdmin.sesuaiPersen, prev?.dokumenAdmin.sesuaiPersen ?? null),
+    },
+    catatanLain: {
+      ...base.catatanLain,
+      biodata: {
+        ...base.catatanLain.biodata,
+        bandingHariSebelumnya: bandingHariSebelumnya(base.catatanLain.biodata.sudahTerverifikasiPersen, prev?.catatanLain.biodata.sudahTerverifikasiPersen ?? null),
+      },
+      dapodik: {
+        ...base.catatanLain.dapodik,
+        bandingHariSebelumnya: bandingHariSebelumnya(base.catatanLain.dapodik.sudahUploadBuktiPersen, prev?.catatanLain.dapodik.sudahUploadBuktiPersen ?? null),
+      },
+      komunikasi: {
+        ...base.catatanLain.komunikasi,
+        bandingHariSebelumnya: bandingHariSebelumnya(base.catatanLain.komunikasi.belumDihubungiPersen, prev?.catatanLain.komunikasi.belumDihubungiPersen ?? null),
+      },
+      panlakFormat: {
+        ...base.catatanLain.panlakFormat,
+        panlakBandingHariSebelumnya: bandingHariSebelumnya(base.catatanLain.panlakFormat.belumPanlakPersen, prev?.catatanLain.panlakFormat.belumPanlakPersen ?? null),
+        formatBandingHariSebelumnya: bandingHariSebelumnya(base.catatanLain.panlakFormat.belumFormatPersen, prev?.catatanLain.panlakFormat.belumFormatPersen ?? null),
+      },
+      rab: {
+        ...base.catatanLain.rab,
+        bandingHariSebelumnya: bandingHariSebelumnya(base.catatanLain.rab.belumSepakatPersen, prev?.catatanLain.rab.belumSepakatPersen ?? null),
+      },
+    },
+  };
+}
+
+/**
+ * Data & instruksi naratif BERSAMA untuk SATU fasilitator (lihat
+ * buildFacilNarrativeDataBase untuk field-field intinya). `prevRow` = FacilRow
+ * Log SLOT YANG SAMA (Log 1/Log 2) di HARI SEBELUMNYA persis (bukan hari
+ * sebelumnya sembarang slot) - null/undefined kalau tidak ada (mis. Hari 1,
+ * atau admin belum pernah isi slot itu kemarin). Dipakai untuk field
+ * "...BandingHariSebelumnya" di tiap kategori metrik (lihat withDayOverDayDeltas)
+ * supaya narasi bisa bilang "naik/turun dari X% ke Y%" atau "tidak ada
+ * perubahan" - dihitung DI KODE, LLM tinggal menyalin kalimatnya.
+ */
+function buildFacilNarrativeData(row: FacilRow, hari: number, prevRow?: FacilRow | null) {
+  const base = buildFacilNarrativeDataBase(row, hari);
+  const prev = prevRow ? buildFacilNarrativeDataBase(prevRow, prevRow.hari) : null;
+  return withDayOverDayDeltas(base, prev);
+}
+
 /** ATURAN WAJIB naratif fasilitator - dipakai APA ADANYA baik oleh
  * buildFacilitatorAnalysisMessages() maupun buildFacilitatorCopyPromptText()
  * (lihat catatan di buildFacilNarrativeData di atas soal kenapa disatukan). */
-const FACIL_NARRATIVE_INSTRUCTIONS = `1. Ikuti urutan paragraf PERSIS seperti contoh: (a) baris pembuka - lihat field "barisPembukaMacet" di data: KALAU isinya sebuah teks, salin teks itu APA ADANYA sebagai baris pembuka (JANGAN diubah satu kata pun); KALAU isinya null, LEWATI baris pembuka ini SEPENUHNYA (JANGAN tulis kalimat apapun sebagai gantinya) dan langsung mulai dari baris (b). PERINGATAN KERAS: barisPembukaMacet null artinya fasil SUDAH mengisi PENUH sampai batas akhir siklus - ini BUKAN kendala/keterlambatan. JANGAN PERNAH mengarang sendiri kalimat sejenis "Fasil ini hanya/baru mengisi LK Fasil sampai hari ke-X" dari data lain manapun di JSON ini kalau barisPembukaMacet null - itu HALUSINASI, tidak ada dasarnya sama sekali di data, (b) baris "Nilai capaian fasil atas [Nama] berada di angka [Skor Akhir] karena ..." - HANYA sebutkan angkanya lalu langsung jelaskan alasannya (grounded ke checkpoint/data yang bermasalah). JANGAN tempelkan kata sifat/label kualitatif APAPUN ke skor itu sendiri buat menilai/mengkategorikannya - dilarang keras semua variasi berikut (daftar ini contoh, BUKAN daftar lengkap, prinsipnya: dilarang SEMUA bentuk penilaian kualitatif atas skor): "(masuk kriteria "...")", "tergolong rendah/cukup/baik", "termasuk kategori ...", "terbilang ...", atau menyisipkan kata sifat langsung sebelum/sesudah angka skornya (mis. "sangat rendah di angka X", "X yang cukup baik") - TIDAK ADA definisi ambang batas resmi buat menilai skor 0-100 itu bagus/jelek, jadi JANGAN menilai skornya sama sekali, cukup laporkan angkanya apa adanya dan biarkan pembaca menyimpulkan sendiri dari penjelasan checkpoint yang menyertainya, (c) paragraf "Checkpoint wajib untuk hari ke-X yaitu ...", X WAJIB diambil PERSIS dari field "hariIni" di data (BUKAN dari "checkpointWajibHariIni.aktifSejakHari" - itu cuma menandakan sejak hari apa checkpoint ini MULAI berlaku, bisa jauh lebih kecil dari hari berjalan sesungguhnya kalau tidak ada checkpoint baru yang persis jatuh tempo hari ini). Field "hariIni" HANYA dipakai untuk kalimat ini - JANGAN dipakai untuk menyusun/mengarang kalimat "Fasil ini hanya mengisi LK Fasil sampai hari ke-..." (itu HARUS tetap murni dari field "barisPembukaMacet" sesuai aturan (a) di atas). Setelah "yaitu", jelaskan checkpoint yang sedang berlaku (lihat "checkpointWajibHariIni" di data) dan status pencapaiannya, tutup dengan menyebutkan SPESIFIK checkpoint/kategori mana yang jadi penyebab utama (bukan kalimat generik "beberapa hal berpotensi berpengaruh"). JANGAN menjelaskan definisi/tujuan monitoring checkpoint tsb (field "tujuan" di data HANYA untuk konteksmu, DILARANG menyalinnya ke output atau memakai frasa seperti "... yang bertujuan untuk memantau ...") - tulis sebagai kalimat TARGET yang harus dicapai sekolah, format "seluruh sekolah [target tercapai]" PERSIS seperti contoh referensi ("seluruh sekolah telah sepakat RAB").
-2. SETELAH itu, WAJIB bahas KE-8 kategori berikut, satu paragraf per kategori, SATU PER SATU dengan urutan dan label PERSIS ini (pakai tanda kutip dua untuk kata "Sesuai"): "Sekolah login aplikasi:", "Perencana:", "Unggah dokumen teknis:", "Verifikasi dokumen teknis:", "Verifikasi dokumen teknis "Sesuai":", "Unggah dokumen admin:", "Verifikasi dokumen admin:", "Verifikasi dokumen admin "Sesuai":".
-3. PENTING - BEDA DARI KEBIASAAN UMUM: WAJIB SEBUTKAN SEMUA 8 kategori itu WALAUPUN capaiannya sudah 100%/sempurna - JANGAN pernah dilewati/di-skip. Kalau sudah 100%, tulis dengan nada positif (contoh: "seluruhnya sudah terverifikasi oleh fasil"), JANGAN dihilangkan dari hasil.
+const FACIL_NARRATIVE_INSTRUCTIONS = `1. Ikuti urutan paragraf PERSIS seperti contoh: (a) baris pembuka - lihat field "barisPembukaMacet" di data: KALAU isinya sebuah teks, salin teks itu APA ADANYA sebagai baris pembuka (JANGAN diubah satu kata pun); KALAU isinya null, LEWATI baris pembuka ini SEPENUHNYA (JANGAN tulis kalimat apapun sebagai gantinya) dan langsung mulai dari baris (b). PERINGATAN KERAS: barisPembukaMacet null artinya fasil SUDAH mengisi PENUH sampai batas akhir siklus - ini BUKAN kendala/keterlambatan. JANGAN PERNAH mengarang sendiri kalimat sejenis "Fasil ini hanya/baru mengisi LK Fasil sampai hari ke-X" dari data lain manapun di JSON ini kalau barisPembukaMacet null - itu HALUSINASI, tidak ada dasarnya sama sekali di data, (b) baris "Nilai capaian fasil atas [Nama] berada di angka [Skor Akhir] karena ..." - HANYA sebutkan angkanya lalu langsung jelaskan alasannya (grounded ke checkpoint/data yang bermasalah). JANGAN tempelkan kata sifat/label kualitatif APAPUN ke skor itu sendiri buat menilai/mengkategorikannya - dilarang keras semua variasi berikut (daftar ini contoh, BUKAN daftar lengkap, prinsipnya: dilarang SEMUA bentuk penilaian kualitatif atas skor): "(masuk kriteria "...")", "tergolong rendah/cukup/baik", "termasuk kategori ...", "terbilang ...", atau menyisipkan kata sifat langsung sebelum/sesudah angka skornya (mis. "sangat rendah di angka X", "X yang cukup baik") - TIDAK ADA definisi ambang batas resmi buat menilai skor 0-100 itu bagus/jelek, jadi JANGAN menilai skornya sama sekali, cukup laporkan angkanya apa adanya dan biarkan pembaca menyimpulkan sendiri dari penjelasan checkpoint yang menyertainya. Tutup baris ini dengan SATU kalimat tambahan berisi field top-level "skorAkhirBandingHariSebelumnya" APA ADANYA (lihat poin 9), (c) paragraf "Checkpoint wajib untuk hari ke-X yaitu ...", X WAJIB diambil PERSIS dari field "checkpointWajibHariIni.aktifSejakHari" di data (hari checkpoint ini MULAI berlaku/jatuh tempo - checkpoint PALING RECENT yang sudah berlaku sampai hari ini, BUKAN dari field "hariIni" - field itu dipakai HANYA di kalimat "Namun, hingga hari ke-..." di bawah, JANGAN dipakai untuk menyusun/mengarang kalimat "Fasil ini hanya mengisi LK Fasil sampai hari ke-..." (itu HARUS tetap murni dari field "barisPembukaMacet" sesuai aturan (a) di atas). Setelah "yaitu", jelaskan checkpoint yang sedang berlaku (lihat "checkpointWajibHariIni" di data) dan status pencapaiannya, tutup dengan menyebutkan SPESIFIK checkpoint/kategori mana yang jadi penyebab utama (bukan kalimat generik "beberapa hal berpotensi berpengaruh"). JANGAN menjelaskan definisi/tujuan monitoring checkpoint tsb (field "tujuan" di data HANYA untuk konteksmu, DILARANG menyalinnya ke output atau memakai frasa seperti "... yang bertujuan untuk memantau ...") - tulis sebagai kalimat TARGET yang harus dicapai sekolah, format "seluruh sekolah [target tercapai]" PERSIS seperti contoh referensi ("seluruh sekolah telah sepakat RAB"). SEGERA setelah kalimat "yaitu ..." itu, WAJIB tambahkan SATU kalimat lagi berpola "Namun, hingga hari ke-{hariIni} ini, masih terdapat {checkpointWajibHariIni.belumMencapaiJumlah} sekolah yang belum [target yang sama, bentuk negatif] ({checkpointWajibHariIni.belumMencapaiPersen}%)." - {hariIni} WAJIB dari field top-level "hariIni" (hari berjalan sesungguhnya), jumlah & persennya WAJIB disalin PERSIS dari "checkpointWajibHariIni.belumMencapaiJumlah"/"belumMencapaiPersen" (JANGAN dihitung/dibulatkan sendiri). Kalau kedua angka itu 0 (seluruh sekolah sudah mencapai target), ganti jadi kalimat positif, mis. "Hingga hari ke-{hariIni} ini, seluruh sekolah sudah [target] tercapai." - JANGAN tulis "masih terdapat 0 sekolah yang belum ...". Tutup paragraf checkpoint ini (setelah kalimat "Beberapa hal yang berpengaruh...") dengan SATU kalimat tambahan berisi field "checkpointWajibHariIni.bandingHariSebelumnya" APA ADANYA (lihat poin 9).
+2. SETELAH itu, bahas kategori-kategori berikut yang RELEVAN (lihat poin 3), satu paragraf per kategori, SATU PER SATU dengan urutan dan label PERSIS ini kalau memang dibahas (pakai tanda kutip dua untuk kata "Sesuai"): "Sekolah login aplikasi:", "Perencana:", "Unggah dokumen teknis:", "Verifikasi dokumen teknis:", "Verifikasi dokumen teknis "Sesuai":", "Unggah dokumen admin:", "Verifikasi dokumen admin:", "Verifikasi dokumen admin "Sesuai":".
+3. Tiap kategori di poin 2 HANYA dibahas KALAU capaiannya BELUM 100%/sempurna (masih ada sekolah/dokumen yang belum menuntaskan tahap itu). KALAU sebuah kategori SUDAH 100%/sempurna (tidak ada lagi sekolah/dokumen yang tertinggal di tahap itu), LEWATI kategori itu SEPENUHNYA - jangan disebut sama sekali, jangan juga menuliskan kalimat pengganti seperti "seluruhnya sudah ..." - cukup dihilangkan dari hasil seolah kategori itu tidak ada.
 4. Kalau ada kolom "kendala..." yang isinya bukan string kosong di data, sertakan isinya apa adanya sebagai kalimat kendala di paragraf terkait. Kalau kosong, tulis kalimat seperti pada contoh ("Kendala terkait ... tidak teridentifikasi karena fasil tidak mengisi informasi terkait hal ini di LK Fasil").
 5. Kalau ada ketimpangan besar antara satu tahap dan tahap berikutnya dalam kategori yang sama (mis. banyak yang terunggah tapi sedikit yang terverifikasi, atau banyak yang terverifikasi tapi sedikit yang "Sesuai"), sertakan juga angka selisihnya secara eksplisit di kalimatnya.
 5b. Untuk kalimat yang menyebut persentase "sudah" sebagai pasangan dari angka "belum" (mis. "Sekolah login aplikasi", "Perencana", dan "Biodata" di Catatan lain - lihat contoh referensi yang selalu menutup dengan "(X% sekolah ... sudah ...)"), WAJIB pakai field "sudahLoginPersen"/"sudahPunyaPersen"/"sudahTerverifikasiPersen" APA ADANYA dari data JSON - JANGAN menghitung sendiri (100 - persen belum), itu rawan salah/terbalik. Field-field ini SUDAH dihitung benar oleh sistem, tinggal disalin.
-6. WAJIB tutup dengan bagian "Catatan lain:" (judul PERSIS begitu, tanpa paragraf lain di atasnya dulu) berisi baris-baris singkat (BUKAN paragraf panjang seperti kategori di atas) untuk checkpoint yang belum dibahas di kategori manapun di atas: Biodata (field catatanLain.biodata), Dapodik (field catatanLain.dapodik), Sekolah Mengundurkan Diri (HANYA JIKA field catatanLain.mengundurkanDiri > 0), dan HANYA kalau field catatanLain.komunikasi/panlakFormat/rab menunjukkan ada masalah nyata (persennya jauh dari sempurna ATAU field kendala-nya berisi laporan masalah) - kalau field itu kosong/sempurna, JANGAN disebut sama sekali di "Catatan lain" (beda dari 8 kategori wajib di poin 2-3 yang harus selalu disebut).
+6. WAJIB tutup dengan bagian "Catatan lain:" (judul PERSIS begitu, tanpa paragraf lain di atasnya dulu) - HANYA kalau ADA MINIMAL SATU baris yang perlu ditulis, kalau semuanya kosong/sempurna LEWATI seluruh bagian "Catatan lain" ini termasuk judulnya. Isinya baris-baris singkat (BUKAN paragraf panjang seperti kategori di atas) untuk checkpoint yang belum dibahas di kategori manapun di atas, dan SEMUANYA (sama seperti aturan poin 3) HANYA ditulis kalau memang belum 100%/sempurna ATAU field kendala-nya berisi laporan masalah nyata - kalau sudah 100%/sempurna dan tidak ada laporan kendala, LEWATI baris itu sepenuhnya: Biodata (field catatanLain.biodata), Dapodik (field catatanLain.dapodik), Komunikasi (field catatanLain.komunikasi), Panlak/Format (field catatanLain.panlakFormat), RAB (field catatanLain.rab). Sekolah Mengundurkan Diri (field catatanLain.mengundurkanDiri) HANYA ditulis JIKA nilainya > 0.
 7. Data dari field "kendala..." yang kosong ("") berarti memang belum ada catatan dari fasilitator - JANGAN mengarang kendala yang tidak ada di data.
-8. Tulis paragraf mengalir natural (bukan bullet point/list), Bahasa Indonesia, TANPA judul tebal markdown di depan tiap paragraf (label kategori seperti "Perencana:" cukup teks biasa, bukan **Perencana:**).`;
+8. Tulis paragraf mengalir natural (bukan bullet point/list), Bahasa Indonesia, TANPA judul tebal markdown di depan tiap paragraf (label kategori seperti "Perencana:" cukup teks biasa, bukan **Perencana:**).
+9. SETIAP paragraf/baris yang DITULIS (kategori mana pun di poin 2 yang memang dibahas sesuai poin 3, paragraf checkpoint poin 1c, baris pembuka Nilai Capaian poin 1b, dan baris "Catatan lain" mana pun yang memang ditulis sesuai poin 6) WAJIB ditutup dengan SATU kalimat tambahan berisi perbandingan Log slot yang sama di hari sebelumnya, diambil APA ADANYA dari field terkait di data JSON (JANGAN menghitung ulang atau memparafrase angka selisihnya sendiri, dan JANGAN membulatkan/mengubah angka persennya lebih jauh lagi walau kelihatan seperti angka desimal ganjil - kalimatnya SUDAH final, tinggal disalin utuh HURUF DEMI HURUF di akhir paragraf/barisnya): "Sekolah login aplikasi" -> sekolahLoginAplikasi.bandingHariSebelumnya; "Perencana" -> perencana.bandingHariSebelumnya; "Unggah dokumen teknis" -> dokumenTeknis.unggahBandingHariSebelumnya; "Verifikasi dokumen teknis" -> dokumenTeknis.verifikasiBandingHariSebelumnya; "Verifikasi dokumen teknis "Sesuai"" -> dokumenTeknis.sesuaiBandingHariSebelumnya; "Unggah dokumen admin" -> dokumenAdmin.unggahBandingHariSebelumnya; "Verifikasi dokumen admin" -> dokumenAdmin.verifikasiBandingHariSebelumnya; "Verifikasi dokumen admin "Sesuai"" -> dokumenAdmin.sesuaiBandingHariSebelumnya; baris Biodata -> catatanLain.biodata.bandingHariSebelumnya; baris Dapodik -> catatanLain.dapodik.bandingHariSebelumnya; baris Komunikasi -> catatanLain.komunikasi.bandingHariSebelumnya; baris Panlak/Format -> catatanLain.panlakFormat.panlakBandingHariSebelumnya DAN catatanLain.panlakFormat.formatBandingHariSebelumnya (dua kalimat, satu per sub-metrik); baris RAB -> catatanLain.rab.bandingHariSebelumnya. Kalau sebuah paragraf/baris memang DILEWATI sesuai poin 3/6 (kondisinya sempurna/tidak ada masalah), kalimat pembandingnya juga TIDAK PERLU ditulis - jangan menulis paragraf/baris itu HANYA demi menyisipkan kalimat pembanding ini.`;
 
 /**
  * Prompt untuk tombol "Copy Prompt" (FacilitatorAnalysisWorkbench.tsx) - untuk
@@ -676,8 +810,8 @@ const FACIL_NARRATIVE_INSTRUCTIONS = `1. Ikuti urutan paragraf PERSIS seperti co
  * kalimat intro pembuka), sedangkan buildFacilitatorAnalysisMessages()
  * mengembalikan ChatMessage[] (system + user) untuk panggilan API internal.
  */
-export function buildFacilitatorCopyPromptText(row: FacilRow, hari: number): string {
-  const data = buildFacilNarrativeData(row, hari);
+export function buildFacilitatorCopyPromptText(row: FacilRow, hari: number, prevRow?: FacilRow | null): string {
+  const data = buildFacilNarrativeData(row, hari, prevRow);
 
   return `Anda adalah asisten analis untuk program revitalisasi sekolah. Tolong tulis analisis naratif untuk SATU fasilitator lapangan, PERSIS meniru gaya, struktur, dan urutan paragraf dari "CONTOH REFERENSI" di bawah - tapi SELURUH angka harus berasal dari "DATA FASILITATOR" (JSON) di bawahnya, JANGAN sekali-kali memakai angka dari contoh referensi.
 

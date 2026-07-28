@@ -10,7 +10,7 @@ export const maxDuration = 60; // Hindari timeout Vercel Hobby (max 60 detik) sa
 export async function POST(req: NextRequest) {
   try {
     const reqBody = await req.json();
-    const { kodeFasil, hari, history: clientHistory, aiProvider, aiKey } = reqBody;
+    const { kodeFasil, hari, history: clientHistory, prevRow, aiProvider, aiKey } = reqBody;
     if (!kodeFasil || typeof kodeFasil !== "string") {
       return NextResponse.json({ error: "kodeFasil wajib diisi." }, { status: 400 });
     }
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     // targetHari di set ke 'hari' yang diminta (kalau spesifik) atau 'todayHari' kalau mode alltime
     const targetHari = typeof hari === "number" ? hari : todayHari;
 
-    const messages = buildFacilitatorAnalysisMessages(history, { anomalyFields, targetHari });
+    const messages = buildFacilitatorAnalysisMessages(history, { anomalyFields, targetHari, prevRow: prevRow ?? null });
     console.log(`\n\n--- [AI DEBUG] INPUT TO LLM UNTUK ${kodeFasil} ---`);
     console.log(JSON.stringify(messages, null, 2));
 

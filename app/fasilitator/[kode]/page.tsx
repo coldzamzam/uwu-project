@@ -87,6 +87,11 @@ export default async function FacilitatorDetailPage({
   // Ikuti hari yang lagi dipilih (DaySelector), bukan cuma hari ini - supaya
   // panel "Log Hari Ini" berubah juga saat pindah ke hari lain.
   const todayLogs = logData?.logsByHari.get(hari) ?? null;
+  // Snapshot Log 1/Log 2 hari SEBELUMNYA (hari - 1) - dipakai FacilitatorAnalysisWorkbench
+  // untuk bandingkan Log slot yang sama (mis. Log 2 hari ini vs Log 2 kemarin,
+  // BUKAN Log 1 hari ini) di narasi AI/Copy Prompt. null kalau tidak ada
+  // (mis. hari 1, atau logData gagal diambil).
+  const prevDayLogs = logData?.logsByHari.get(hari - 1) ?? null;
 
   // "Keseluruhan" sengaja tidak digating per hari - tunjukkan status SEMUA 14
   // checkpoint terhadap kondisi terkini, bukan cuma yang sudah jatuh tempo.
@@ -200,6 +205,7 @@ export default async function FacilitatorDetailPage({
               configuredProviders={configuredProviderNames()}
               history={history}
               dayLogs={todayLogs}
+              prevDayLogs={prevDayLogs}
             />
           </div>
         </div>

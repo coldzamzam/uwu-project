@@ -276,6 +276,7 @@ export function FacilitatorAnalysisWorkbench({
   configuredProviders = [],
   history,
   dayLogs,
+  prevDayLogs,
 }: {
   row: FacilRow;
   hari: number;
@@ -288,6 +289,10 @@ export function FacilitatorAnalysisWorkbench({
   configuredProviders?: string[];
   history?: FacilRow[];
   dayLogs?: { log1: FacilRow | null; log2: FacilRow | null } | null;
+  /** Snapshot Log 1/Log 2 hari SEBELUMNYA (hari - 1) - dipakai untuk
+   * membandingkan Log slot yang SAMA (lihat prevActiveRow di bawah) di
+   * narasi AI/Copy Prompt, BUKAN cuma "hari sebelumnya" sembarang slot. */
+  prevDayLogs?: { log1: FacilRow | null; log2: FacilRow | null } | null;
 }) {
   const [hasil, setHasil] = useState(existingAnalisis ?? fieldValue(row, "analisis"));
   const [logSource, setLogSource] = useState<"log1" | "log2">(dayLogs?.log2 ? "log2" : "log1");
@@ -305,6 +310,11 @@ export function FacilitatorAnalysisWorkbench({
   }, [hari, dayLogs?.log1, dayLogs?.log2]);
 
   const activeRow = logSource === "log1" ? (dayLogs?.log1 ?? row) : (dayLogs?.log2 ?? row);
+  // Log SLOT YANG SAMA (log1/log2) di hari sebelumnya - null kalau tidak ada
+  // (mis. Hari 1, atau admin belum pernah isi slot itu kemarin). SENGAJA
+  // TIDAK fallback ke row/slot lain - kalau Log 2 kemarin kosong, itu memang
+  // berarti tidak ada pembanding, bukan dianggap sama dengan Log 1 kemarin.
+  const prevActiveRow = logSource === "log1" ? (prevDayLogs?.log1 ?? null) : (prevDayLogs?.log2 ?? null);
 
   const [showConfig, setShowConfig] = useState(false);
   const [aiProvider, setAiProvider] = useState<string>("");
@@ -363,9 +373,17 @@ export function FacilitatorAnalysisWorkbench({
     setGenerating(true);
     setGenError(null);
     try {
-      const basePayload = mode === "alltime" ? { kodeFasil: row.kodeFasil } : { kodeFasil: row.kodeFasil, hari };
+      // `hari` SELALU dikirim (dulu di-skip untuk mode "alltime") - server
+      // pakai ini sebagai targetHari buat nentuin baris MANA di `history`
+      // yang jadi "hari yang dianalisis" (lihat buildFacilitatorAnalysisMessages
+      // di core/prompts.ts). Tanpa ini, server bisa salah ambil baris kalau
+      // `history` berisi hari-hari setelah `hari` (mis. baris kosong hari
+      // berikutnya yang sudah otomatis ada di masterLog) - gejalanya narasi
+      // memakai data hari/Log slot yang salah walau admin sudah pilih Log
+      // 1/Log 2 yang benar lewat toggle di atas.
+      const basePayload = { kodeFasil: row.kodeFasil, hari };
       const modifiedHistory = history ? history.map((r) => (r.hari === hari ? activeRow : r)) : undefined;
-      const payload = { ...basePayload, history: modifiedHistory, aiProvider, aiKey: aiKeys[aiProvider] || "" };
+      const payload = { ...basePayload, history: modifiedHistory, prevRow: mode === "alltime" ? undefined : prevActiveRow, aiProvider, aiKey: aiKeys[aiProvider] || "" };
       const res = await fetch("/api/analyze/facilitator", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -386,7 +404,7 @@ export function FacilitatorAnalysisWorkbench({
     setCopyState("copying");
     setCopyError(null);
     try {
-      const promptText = buildFacilitatorCopyPromptText(activeRow, hari);
+      const promptText = buildFacilitatorCopyPromptText(activeRow, hari, prevActiveRow);
       await navigator.clipboard.writeText(promptText);
       setCopyState("done");
       setTimeout(() => setCopyState("idle"), 2000);
