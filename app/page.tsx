@@ -3,12 +3,10 @@ import { getFacilRowsForSelectedAdmin, getTodayHari, isUsingSampleData } from "@
 import { getAvailableDays, getFacilitators, getRowsForDay, summarizeDay, groupRowsByFacilitator, getCurrentRow } from "@uwu/core/metrics";
 import { getCheckpointCompliance, countNonCompliant } from "@uwu/core/compliance";
 import { scanAllAnomalies } from "@uwu/core/anomalies";
-import { countQualitativeActivityByDay } from "@uwu/core/notes";
 import { DaySelector } from "@/components/DaySelector";
 import { ModeToggle } from "@/components/ModeToggle";
 import { SummaryCards } from "@/components/SummaryCards";
 import { StatTile } from "@/components/StatTile";
-import { QualitativeActivityChart } from "@/components/QualitativeActivityChart";
 import { AllFasilRawMatriksTable } from "@/components/AllFasilRawMatriksTable";
 
 export default async function DashboardPage({
@@ -45,7 +43,6 @@ export default async function DashboardPage({
   const hariRelLabel = hari === todayHari ? "hari ini" : hari < todayHari ? "sudah lewat" : "belum terjadi";
 
   const anomalyReports = scanAllAnomalies(rows, todayHari);
-  const activity = countQualitativeActivityByDay(rows, todayHari);
   const firstFacilitator = getFacilitators(rows)[0] ?? null;
 
   return (
@@ -105,12 +102,6 @@ export default async function DashboardPage({
           </Link>
         </div>
       </section>
-
-      {mode === "alltime" && (
-        <section className="border-t border-hairline pt-8">
-          <QualitativeActivityChart data={activity} />
-        </section>
-      )}
 
       {/* Signature Forest CTA Card - Brand Voltage Moment */}
       {firstFacilitator && (
