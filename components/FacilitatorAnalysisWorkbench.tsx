@@ -22,6 +22,23 @@ function fieldValue(row: FacilRow, key: keyof FacilRow): string {
   return v;
 }
 
+/** Slot Log (1/2) dianggap PUNYA data kalau baris-nya ada DAN Skor Akhir-nya
+ * terisi - baris masterLog bisa saja "ada" secara objek (Tanggal/Nama
+ * Fasil/Hari ke- sudah terisi otomatis oleh sheet) padahal fasil belum
+ * benar-benar mengisi log itu, seluruh kolom skornya masih kosong. Skor
+ * Akhir dipakai sebagai penanda karena itu kolom rollup akhir dari SEMUA
+ * checkpoint (lihat buildFacilRowFromMasterLog di lib/masterSheet.ts) - kalau
+ * itu kosong (null), log tsb belum benar-benar diisi, BUKAN cuma "belum
+ * masuk jam log-nya" (waktu tidak dipakai sama sekali di sini, murni cek ada
+ * tidaknya data). */
+function hasLogData(row: FacilRow | null | undefined): boolean {
+  return row != null && row.skorAkhir != null;
+}
+
+function defaultLogSource(dayLogs?: { log1: FacilRow | null; log2: FacilRow | null } | null): "log1" | "log2" {
+  return hasLogData(dayLogs?.log2) ? "log2" : "log1";
+}
+
 /** "aman" (hijau) = tidak ada kendala nyata, "belum-diisi" (kuning) = fasilitator
  * belum menanggapi padahal checkpoint sudah jatuh tempo (gap administratif,
  * belum tentu ada masalah lapangan), "ada-kendala" (merah) = laporan masalah
@@ -295,7 +312,7 @@ export function FacilitatorAnalysisWorkbench({
   prevDayLogs?: { log1: FacilRow | null; log2: FacilRow | null } | null;
 }) {
   const [hasil, setHasil] = useState(existingAnalisis ?? fieldValue(row, "analisis"));
-  const [logSource, setLogSource] = useState<"log1" | "log2">(dayLogs?.log2 ? "log2" : "log1");
+  const [logSource, setLogSource] = useState<"log1" | "log2">(defaultLogSource(dayLogs));
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "done" | "error">("idle");
@@ -306,7 +323,7 @@ export function FacilitatorAnalysisWorkbench({
   const [copyAnalysisError, setCopyAnalysisError] = useState<string | null>(null);
 
   useEffect(() => {
-    setLogSource(dayLogs?.log2 ? "log2" : "log1");
+    setLogSource(defaultLogSource(dayLogs));
   }, [hari, dayLogs?.log1, dayLogs?.log2]);
 
   const activeRow = logSource === "log1" ? (dayLogs?.log1 ?? row) : (dayLogs?.log2 ?? row);
@@ -574,28 +591,28 @@ export function FacilitatorAnalysisWorkbench({
                 <button
                   type="button"
                   onClick={() => setLogSource("log1")}
-                  disabled={!dayLogs?.log1 && !!dayLogs?.log2}
+                  disabled={!hasLogData(dayLogs?.log1)}
                   className={`rounded-[var(--radius-xs)] px-3 py-1 transition-all ${
                     logSource === "log1"
                       ? "bg-primary text-on-primary font-semibold"
                       : "text-ink-secondary hover:text-ink-primary disabled:opacity-40"
                   }`}
-                  title={!dayLogs?.log1 ? "Data Log 1 (07.00 WIB) kosong / belum tersedia" : "Gunakan data Log 1 Pagi (07.00 WIB)"}
+                  title={!hasLogData(dayLogs?.log1) ? "Data Log 1 (07.00 WIB) kosong / belum diisi fasilitator" : "Gunakan data Log 1 Pagi (07.00 WIB)"}
                 >
-                  Log 1 (07.00 WIB) {!dayLogs?.log1 && !!dayLogs ? "🚫" : ""}
+                  Log 1 (07.00 WIB) {!hasLogData(dayLogs?.log1) ? "🚫" : ""}
                 </button>
                 <button
                   type="button"
                   onClick={() => setLogSource("log2")}
-                  disabled={!dayLogs?.log2 && !!dayLogs?.log1}
+                  disabled={!hasLogData(dayLogs?.log2)}
                   className={`rounded-[var(--radius-xs)] px-3 py-1 transition-all ${
                     logSource === "log2"
                       ? "bg-primary text-on-primary font-semibold"
                       : "text-ink-secondary hover:text-ink-primary disabled:opacity-40"
                   }`}
-                  title={!dayLogs?.log2 ? "Data Log 2 (13.30 WIB) kosong / belum tersedia" : "Gunakan data Log 2 Sore (13.30 WIB)"}
+                  title={!hasLogData(dayLogs?.log2) ? "Data Log 2 (13.30 WIB) kosong / belum diisi fasilitator" : "Gunakan data Log 2 Sore (13.30 WIB)"}
                 >
-                  Log 2 (13.30 WIB) {!dayLogs?.log2 && !!dayLogs ? "🚫" : ""}
+                  Log 2 (13.30 WIB) {!hasLogData(dayLogs?.log2) ? "🚫" : ""}
                 </button>
               </div>
             </div>
