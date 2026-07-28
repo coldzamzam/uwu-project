@@ -102,7 +102,7 @@ export async function getRosterEntries(): Promise<RosterEntry[]> {
           const value = (row[k.header] ?? "").trim();
           if (value) kendala[k.kolom] = value;
         }
-        
+
         const urlLK = (row["LK_LOG"] ?? row["LK Log"] ?? row["URL LK"] ?? row["Link LK"] ?? row["LK_Log"] ?? "").trim();
         const urlLKFasil = (row["LK Fasilitator"] ?? row["LK_Fasilitator"] ?? row["URL LK Fasil"] ?? row["Link LK Fasil"] ?? "").trim();
         const rawTotalSekolah = parseInt((row["Total Sekolah"] ?? row["Total_Sekolah"] ?? "").trim(), 10);
