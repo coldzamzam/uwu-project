@@ -26,14 +26,14 @@ function IndicatorValue({
   fallbackClass: string;
   clampHijau?: boolean;
 }) {
-  const sev = indicatorSeverity(ind, group);
-  if (!sev) return <span className={`font-semibold ${fallbackClass}`}>{ind.detail}</span>;
-  const tier = clampHijau ? clampToNonHijau(sev.tier) : sev.tier;
-  const s = TIER_STYLES[tier];
+  const tier = indicatorSeverity(ind, group);
+  if (!tier) return <span className={`font-semibold ${fallbackClass}`}>{ind.detail}</span>;
+  const activeTier = clampHijau ? clampToNonHijau(tier) : tier;
+  const s = TIER_STYLES[activeTier];
   return (
     <>
       <span className={`font-semibold ${s.text}`}>{ind.detail}</span>
-      <span className={`ml-1 text-[10px] font-bold uppercase tracking-wide ${s.text}`}>[{TIER_LABEL[tier]}]</span>
+      <span className={`ml-1 text-[10px] font-bold uppercase tracking-wide ${s.text}`}>[{TIER_LABEL[activeTier]}]</span>
     </>
   );
 }
@@ -50,7 +50,7 @@ function statusStyle(status: CheckpointCompliance["status"], violations: Indicat
   }
   let worst: SeverityTier | null = null;
   for (const v of violations) {
-    const tier = clampToNonHijau(indicatorSeverity(v, group)?.tier ?? "merah");
+    const tier = clampToNonHijau(indicatorSeverity(v, group) ?? "merah");
     if (worst === null || TIER_RANK[tier] > TIER_RANK[worst]) worst = tier;
   }
   return TIER_STYLES[worst ?? "merah"];

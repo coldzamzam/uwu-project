@@ -5,13 +5,6 @@ export type SeverityTier = "hijau" | "kuning" | "oranye" | "merah";
 
 export const TIER_LABEL: Record<SeverityTier, string> = { hijau: "Hijau", kuning: "Kuning", oranye: "Oranye", merah: "Merah" };
 
-export const TIER_ACTION: Record<SeverityTier, string> = {
-  hijau: "tidak perlu tindakan",
-  kuning: "monitoring",
-  oranye: "tindak lanjut oleh koordinator",
-  merah: "eskalasi ke pusat/pembinaan intensif",
-};
-
 export const TIER_RANK: Record<SeverityTier, number> = { hijau: 0, kuning: 1, oranye: 2, merah: 3 };
 
 /** Acuan admin untuk mengklasifikasi tingkat keparahan checkpoint, dikonversi
@@ -22,10 +15,9 @@ export const TIER_RANK: Record<SeverityTier, number> = { hijau: 0, kuning: 1, or
  * lengkap) - begitu ada masalah sedikit pun (>0%), langsung masuk kuning
  * (v2, atas permintaan program owner 2026-07-16 - beda dari v1 yang masih
  * kasih toleransi 0-10% "hampir sempurna" ikut dianggap hijau). */
-export function classifySeverity(raw: number, polarity: CheckpointIndicator["polarity"]): { tier: SeverityTier; aksi: string } {
+export function classifySeverity(raw: number, polarity: CheckpointIndicator["polarity"]): SeverityTier {
   const problemPct = polarity === "higherIsBetter" ? 100 - raw : raw;
-  const tier: SeverityTier = problemPct <= 0 ? "hijau" : problemPct <= 30 ? "kuning" : problemPct <= 70 ? "oranye" : "merah";
-  return { tier, aksi: TIER_ACTION[tier] };
+  return problemPct <= 0 ? "hijau" : problemPct <= 30 ? "kuning" : problemPct <= 70 ? "oranye" : "merah";
 }
 
 /** Tier hijau TIDAK PERNAH dipakai untuk sesuatu yang masih "violation"/"Belum
@@ -49,7 +41,7 @@ export function clampToNonHijau(tier: SeverityTier): SeverityTier {
  * (mis. indikator "Kuning" di 89% tidak boleh ikut ditampilkan semerah
  * indikator yang benar-benar 0%, walau checkpoint-nya sama-sama "Belum Sesuai"
  * karena targetnya persis 100%). */
-export function indicatorSeverity(ind: IndicatorCompliance, group: CheckpointGroup): { tier: SeverityTier; aksi: string } | null {
+export function indicatorSeverity(ind: IndicatorCompliance, group: CheckpointGroup): SeverityTier | null {
   if (ind.kolom === "fasilBelumLoginLK") return null;
   const raw = parseFloat(ind.detail);
   if (Number.isNaN(raw)) return null;

@@ -1,4 +1,4 @@
-import { classifySeverity, TIER_LABEL, TIER_ACTION } from "@uwu/core/severity";
+import { classifySeverity, TIER_LABEL } from "@uwu/core/severity";
 import type { SeverityTier } from "@uwu/core/severity";
 
 export const TIER_STYLES: Record<SeverityTier, { text: string; bg: string; dot: string }> = {
@@ -19,7 +19,7 @@ export function SeverityValue({
   polarity?: "higherIsBetter" | "higherIsWorse";
 }) {
   if (value == null) return <span className="text-ink-muted">-</span>;
-  const { tier } = classifySeverity(value, polarity);
+  const tier = classifySeverity(value, polarity);
   const s = TIER_STYLES[tier];
   return (
     <span className={`inline-flex min-w-[3.5rem] items-center justify-center rounded-[var(--radius-sm)] px-2 py-1 text-xs font-semibold tabular-nums ${s.bg} ${s.text}`}>
@@ -31,8 +31,8 @@ export function SeverityValue({
 export function SeverityLegend() {
   const tiers: SeverityTier[] = ["hijau", "kuning", "oranye", "merah"];
   const RANGE_LABEL: Record<SeverityTier, string> = {
-    hijau: "≥90%–100%",
-    kuning: "70%–<90%",
+    hijau: "100%",
+    kuning: "70%–<100%",
     oranye: "30%–<70%",
     merah: "0%–<30%",
   };
@@ -45,7 +45,7 @@ export function SeverityLegend() {
             <span className={`h-2 w-2 rounded-full ${s.dot}`} aria-hidden />
             <span className={`font-semibold ${s.text}`}>{TIER_LABEL[tier]}</span>
             <span className="text-ink-muted">
-              {RANGE_LABEL[tier]} · {TIER_ACTION[tier]}
+              {RANGE_LABEL[tier]}
             </span>
           </span>
         );

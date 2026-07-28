@@ -12,7 +12,7 @@ interface StageBoxData {
 }
 
 function StageBox({ stage, value, caption, compact }: StageBoxData & { compact?: boolean }) {
-  const s = value == null ? null : TIER_STYLES[classifySeverity(value, "higherIsBetter").tier];
+  const s = value == null ? null : TIER_STYLES[classifySeverity(value, "higherIsBetter")];
   if (compact) {
     return (
       <div className={`flex-1 rounded-[var(--radius-sm)] border border-hairline px-2.5 py-2 ${s?.bg ?? "bg-background"}`}>

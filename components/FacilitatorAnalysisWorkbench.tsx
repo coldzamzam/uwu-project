@@ -131,7 +131,7 @@ function ContactStatusNote({ compliance }: { compliance: CheckpointCompliance[] 
   }
   const raw = parseFloat(ind.detail);
   if (Number.isNaN(raw)) return null;
-  const { tier } = classifySeverity(raw, "higherIsWorse");
+  const tier = classifySeverity(raw, "higherIsWorse");
   const s = TIER_STYLES[tier];
   const label = raw === 0 ? "Sudah menghubungi semua sekolah" : `Belum menghubungi ${ind.detail} sekolah`;
   return (

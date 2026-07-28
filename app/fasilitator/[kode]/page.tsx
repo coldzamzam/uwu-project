@@ -15,14 +15,14 @@ import { RiskBadge } from "@/components/RiskBadge";
 import { AnomalyList } from "@/components/AnomalyList";
 import { getFacilitatorLkEditUrl, getFacilitatorLkFasilEditUrl } from "@/lib/facilitatorLkLinks";
 import { TodayLogPanel } from "@/components/TodayLogPanel";
+import { auth } from "@/lib/auth";
+import { fetchAnalisisTable } from "@/lib/writeSheet";
 
 function hariRelativeLabel(hari: number, todayHari: number): string {
   if (hari === todayHari) return "hari ini";
   if (hari < todayHari) return "sudah lewat";
   return "belum terjadi";
 }
-
-
 
 export default async function FacilitatorDetailPage({
   params,
@@ -35,17 +35,22 @@ export default async function FacilitatorDetailPage({
   const { hari: hariParam, mode: modeParam } = await searchParams;
   const mode: "alltime" | "harian" = modeParam === "alltime" ? "alltime" : "harian";
 
+  const session = await auth();
+  // @ts-expect-error accessToken ada di config JWT NextAuth kita
+  const accessToken = session?.accessToken;
+
   // v2: link "LK Log" (editUrl, kolom F) & "LK Fasilitator" (lkFasilEditUrl,
   // kolom G - LK Fasil pribadi sebenarnya, lihat lib/controller.ts) & histori
   // tab "Log" datang dari spreadsheet controller (fetch async), beda dari v1
   // yang baca env var statis secara sinkron - independen satu sama lain jadi
   // di-fetch paralel.
-  const [rows, todayHari, editUrl, lkFasilEditUrl, logData] = await Promise.all([
+  const [rows, todayHari, editUrl, lkFasilEditUrl, logData, analysisTable] = await Promise.all([
     getFacilRowsForSelectedAdmin(),
     getTodayHari(),
     getFacilitatorLkEditUrl(kode),
     getFacilitatorLkFasilEditUrl(kode),
     getFacilitatorLogData(kode),
+    accessToken ? fetchAnalisisTable(kode, accessToken) : Promise.resolve(null),
   ]);
 
   // Histori multi-hari dari tab "Log" (kalau ada, lihat lib/sheet.ts) -
@@ -57,6 +62,17 @@ export default async function FacilitatorDetailPage({
 
   const days = history.map((r: FacilRow) => r.hari);
   const latestDay = days[days.length - 1];
+
+  let missingAnalysisDays: Set<number> | undefined = undefined;
+  if (analysisTable) {
+    missingAnalysisDays = new Set<number>();
+    for (const d of days) {
+      const val = analysisTable.get(d);
+      if (!val || val.trim() === "" || val === "Belum Diisi") {
+        missingAnalysisDays.add(d);
+      }
+    }
+  }
 
   let hari: number;
   let currentRow: FacilRow;
@@ -157,6 +173,7 @@ export default async function FacilitatorDetailPage({
               current={hari}
               basePath={`/fasilitator/${kode}`}
               todayHari={todayHari}
+              missingAnalysisDays={missingAnalysisDays}
             />
           )}
         </div>
@@ -179,7 +196,7 @@ export default async function FacilitatorDetailPage({
               nextFacilitator={nextFacilitator}
               facilPosition={facilIndex >= 0 ? facilIndex + 1 : null}
               totalFacilitators={allFacilitators.length}
-              existingAnalisis={null}
+              existingAnalisis={analysisTable?.get(hari) || null}
               configuredProviders={configuredProviderNames()}
               history={history}
               dayLogs={todayLogs}

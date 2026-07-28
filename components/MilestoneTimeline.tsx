@@ -65,7 +65,7 @@ function isBelumDiisiNote(note: string | undefined): boolean {
 function readingTier(r: Reading): SeverityTier | null {
   if (r.status === "unknown") return isBelumDiisiNote(r.note) ? "merah" : null;
   if (r.completionPct == null) return null;
-  return classifySeverity(r.completionPct, "higherIsBetter").tier;
+  return classifySeverity(r.completionPct, "higherIsBetter");
 }
 
 function readingText(r: Reading): string {

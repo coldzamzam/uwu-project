@@ -139,7 +139,7 @@ function buildProblemCheckpoints(
     const detail = visible
       .map((i) => {
         const sev = indicatorSeverity(i, entry.group);
-        const tierTag = sev ? ` [${TIER_LABEL[sev.tier]} - ${sev.aksi}]` : "";
+        const tierTag = sev ? ` [${TIER_LABEL[sev]}]` : "";
         const gatingTag = i.gating ? "" : " (info, tidak menggerakkan status)";
         return `${i.label}: ${i.detail}${tierTag}${gatingTag}`;
       })
@@ -364,8 +364,8 @@ export function buildDailySummaryMessages(dayRows: FacilRow[], hari: number, pre
           for (const i of c.indicators) {
             if (!i.gating) continue;
             const sev = indicatorSeverity(i, c.group);
-            if (sev && (worst == null || TIER_RANK[sev.tier] > TIER_RANK[worst.tier])) {
-              worst = { label: i.label, detail: i.detail, tier: sev.tier };
+            if (sev && (worst == null || TIER_RANK[sev] > TIER_RANK[worst.tier])) {
+              worst = { label: i.label, detail: i.detail, tier: sev };
             }
           }
           return worst ? `${c.group.name} [${TIER_LABEL[worst.tier]} - ${worst.label}: ${worst.detail}]` : c.group.name;

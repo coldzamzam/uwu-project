@@ -12,17 +12,26 @@ export default async function PerbandinganPage() {
     .filter((r): r is NonNullable<typeof r> => !!r);
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-title-lg text-ink-primary">Perbandingan Antar Fasilitator</h1>
-        <p className="mt-1 text-body-md text-ink-secondary">
-          Kondisi terkini (per Hari ke-{todayHari}) tiap fasilitator untuk satu metrik, dipilih dari dropdown di
-          bawah. Ini beneran berbeda-beda per fasilitator (beda dari tren per-hari, yang datar karena angka di sheet
-          belum berubah antar hari). Warna selalu berarti sama: hijau = baik, kuning = perlu diperhatikan, merah =
-          bermasalah - berapapun arah angka aslinya (ada metrik yang baik itu 100%, ada yang baik itu 0%).
-        </p>
-      </div>
-      <MetricComparisonChart rows={currentRows} />
+    <div className="flex flex-col gap-10">
+      {/* Editorial Header Band */}
+      <section className="border-b border-hairline pb-8 pt-2">
+        <div className="max-w-4xl">
+          <span className="inline-block rounded-[var(--radius-sm)] bg-surface-soft border border-hairline px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-ink-muted mb-3">
+            Komparasi Real-Time · Hari ke-{todayHari}
+          </span>
+          <h1 className="text-3xl sm:text-[36px] font-normal leading-[1.2] tracking-tight text-ink-primary">
+            Perbandingan Antar Fasilitator
+          </h1>
+          <p className="mt-3 text-base leading-relaxed text-ink-secondary max-w-3xl font-normal">
+            Analisis kondisi terkini tiap fasilitator untuk metrik spesifik yang dipilih. Warna selalu konsisten: hijau = baik, kuning = perlu diperhatikan, merah = bermasalah - menyesuaikan arah bobot dan target indikator aslinya.
+          </p>
+        </div>
+      </section>
+
+      {/* Comparison Workspace */}
+      <section className="rounded-[var(--radius-lg)] border border-hairline bg-surface-soft/40 p-6 sm:p-8">
+        <MetricComparisonChart rows={currentRows} />
+      </section>
     </div>
   );
 }

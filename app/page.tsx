@@ -46,59 +46,108 @@ export default async function DashboardPage({
 
   const anomalyReports = scanAllAnomalies(rows, todayHari);
   const activity = countQualitativeActivityByDay(rows, todayHari);
-  // getFacilitators() sudah terurut alfabetis (lihat core/metrics.ts) - dipakai
-  // supaya "Mulai Analisis" selalu mulai dari fasilitator pertama urut nama.
   const firstFacilitator = getFacilitators(rows)[0] ?? null;
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-12">
       {isUsingSampleData() && (
-        <div className="rounded-[var(--radius-sm)] border border-status-warning/40 bg-status-warning/10 px-4 py-2.5 text-body-md text-status-warning">
-          Menampilkan data contoh (fixtures/sample-sheet.csv). Set <code className="font-mono">SHEET_CSV_URL</code> di{" "}
-          <code className="font-mono">.env.local</code> untuk memakai data spreadsheet asli.
+        <div className="rounded-[var(--radius-sm)] border border-[#c89433] bg-[#f5e9d4] px-4 py-3 text-body-md font-medium text-[#181d26]">
+          ⚠ Menampilkan data contoh (<code className="font-mono bg-white/60 px-1 py-0.5 rounded">fixtures/sample-sheet.csv</code>). Set <code className="font-mono bg-white/60 px-1 py-0.5 rounded">SHEET_CSV_URL</code> di <code className="font-mono bg-white/60 px-1 py-0.5 rounded">.env.local</code> untuk memakai data spreadsheet asli.
         </div>
       )}
 
-      <div>
-        <h1 className="text-title-lg text-ink-primary">Dashboard Fasilitator</h1>
-        <p className="mt-1 text-body-md text-ink-secondary">Pantau kinerja fasilitator selama siklus pendampingan 14 hari.</p>
-      </div>
+      {/* Airtable Hero Band - Editorial Whitespace Framing */}
+      <section className="border-b border-hairline pb-8 pt-4">
+        <div className="max-w-4xl">
+          <span className="inline-block rounded-[var(--radius-sm)] bg-surface-soft border border-hairline px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-ink-muted mb-4">
+            Pemantauan & Analitika Siklus 14 Hari
+          </span>
+          <h1 className="text-3xl sm:text-[40px] font-normal leading-[1.2] tracking-tight text-ink-primary">
+            Workspace Eksplorasi & Verifikasi Kinerja Fasilitator
+          </h1>
+          <p className="mt-4 text-base leading-relaxed text-ink-secondary max-w-3xl font-normal">
+            Pantau tingkat login, kelengkapan dokumen administrasi dan teknis, serta deteksi anomali operasional di seluruh 30 LK Fasilitator secara real-time.
+          </p>
+        </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <ModeToggle mode={mode} />
-        {mode === "harian" && (
-          <DaySelector days={days} current={hari} todayHari={todayHari} extraParams={{ mode: "harian" }} />
-        )}
-      </div>
+        {/* Control Rail */}
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-hairline/60 bg-surface-soft/40 p-3 rounded-[var(--radius-md)]">
+          <ModeToggle mode={mode} />
+          {mode === "harian" && (
+            <DaySelector days={days} current={hari} todayHari={todayHari} extraParams={{ mode: "harian" }} />
+          )}
+        </div>
+      </section>
 
-      <SummaryCards summary={summary} />
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatTile
-          label={`Checkpoint Belum Sesuai (per Hari ${hari}, ${hariRelLabel})`}
-          value={String(nonCompliantFacilCount)}
-          tone={nonCompliantFacilCount > 0 ? "critical" : "default"}
-        />
-        <Link href="/anomali" className="block">
+      {/* Demo-Grid Cluster - Signature Pastel Cards */}
+      <section className="flex flex-col gap-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-title-sm font-semibold text-ink-primary">Ringkasan Metrik Program</h2>
+          <span className="text-xs font-medium text-ink-muted">Diperbarui Live · Hari ke-{todayHari}</span>
+        </div>
+
+        <SummaryCards summary={summary} />
+        
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <StatTile
-            label="Fasilitator dengan Anomali (lihat detail →)"
-            value={`${anomalyReports.length}/${getFacilitators(rows).length}`}
-            tone={anomalyReports.length > 0 ? "warning" : "default"}
+            label={`Checkpoint Belum Sesuai (per Hari ${hari}, ${hariRelLabel})`}
+            value={`${nonCompliantFacilCount} Fasilitator`}
+            tone={nonCompliantFacilCount > 0 ? "critical" : "default"}
+            variant={nonCompliantFacilCount > 0 ? "yellow" : "soft"}
           />
-        </Link>
-      </div>
+          <Link href="/anomali" className="block transition-transform hover:-translate-y-0.5 duration-200">
+            <StatTile
+              label="Fasilitator dengan Anomali (klik untuk pemeriksaan →)"
+              value={`${anomalyReports.length} dari ${getFacilitators(rows).length} Fasilitator`}
+              tone={anomalyReports.length > 0 ? "warning" : "default"}
+              variant={anomalyReports.length > 0 ? "mustard" : "soft"}
+            />
+          </Link>
+        </div>
+      </section>
 
-      {mode === "alltime" && <QualitativeActivityChart data={activity} />}
-
-      {firstFacilitator && (
-        <Link
-          href={`/fasilitator/${firstFacilitator.kodeFasil}`}
-          className="btn-primary w-full text-center"
-        >
-          Mulai Analisis - dari {firstFacilitator.namaFasil} (fasilitator pertama, urut A-Z)
-        </Link>
+      {mode === "alltime" && (
+        <section className="border-t border-hairline pt-8">
+          <QualitativeActivityChart data={activity} />
+        </section>
       )}
 
-      <AllFasilRawMatriksTable rows={dayRows} />
+      {/* Signature Forest CTA Card - Brand Voltage Moment */}
+      {firstFacilitator && (
+        <section className="rounded-[var(--radius-lg)] bg-[#0a2e0e] p-8 md:p-12 text-white shadow-md my-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
+          <div className="max-w-2xl">
+            <span className="inline-block rounded-[var(--radius-xs)] bg-[#a8d8c4] px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-[#0a2e0e] mb-3">
+              Alur Investigasi & Analisis AI
+            </span>
+            <h3 className="text-2xl sm:text-3xl font-normal leading-tight tracking-tight">
+              Review Mendalam Lembar Kerja Fasilitator
+            </h3>
+            <p className="mt-2 text-sm leading-relaxed text-white/80 font-normal">
+              Lakukan tinjauan kualitatif, pemeriksaan kendala sekolah, dan pembuatan kesimpulan analisis harian untuk seluruh fasilitator, dimulai dari <strong className="text-white underline decoration-[#a8d8c4] decoration-2">{firstFacilitator.namaFasil}</strong> (urut A-Z).
+            </p>
+          </div>
+          <Link
+            href={`/fasilitator/${firstFacilitator.kodeFasil}`}
+            className="shrink-0 inline-flex items-center justify-center gap-2 rounded-[var(--radius-lg)] bg-white px-7 py-4 text-base font-semibold text-[#0a2e0e] shadow-sm transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-white"
+          >
+            Mulai Analisis Sekarang &rarr;
+          </Link>
+        </section>
+      )}
+
+      {/* Matriks Data Fasil */}
+      <section className="border-t border-hairline pt-8">
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 className="text-title-lg text-ink-primary font-normal">Matriks Kinerja Keseluruhan</h2>
+            <p className="text-sm text-ink-secondary">Klik nama fasilitator untuk masuk ke panel evaluasi terperinci.</p>
+          </div>
+          <span className="text-xs font-medium text-ink-muted bg-surface-soft px-3 py-1.5 rounded-[var(--radius-sm)] border border-hairline self-start sm:self-auto">
+            Total {dayRows.length} Lembar Kerja
+          </span>
+        </div>
+        <AllFasilRawMatriksTable rows={dayRows} />
+      </section>
     </div>
   );
 }
