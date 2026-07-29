@@ -330,15 +330,17 @@ export function buildFacilitatorAnalysisMessages(
   const maxDay = options?.targetHari ?? history[history.length - 1].hari;
   const latest = history.find((r) => r.hari === maxDay) ?? history[history.length - 1];
   const data = buildFacilNarrativeData(latest, maxDay, options?.prevRow);
+  const refExample = buildDynamicReferenceExample(data);
+  const instructions = buildDynamicInstructions(data);
 
   const userPrompt = `Tolong tulis analisis naratif untuk SATU fasilitator lapangan, PERSIS meniru gaya, struktur, dan urutan paragraf dari "CONTOH REFERENSI" di bawah - tapi SELURUH angka harus berasal dari "DATA FASILITATOR" (JSON) di bawahnya, JANGAN sekali-kali memakai angka dari contoh referensi.
 
 === CONTOH REFERENSI (tiru gaya & strukturnya, BUKAN angkanya) ===
-${FACIL_NARRATIVE_REFERENCE_EXAMPLE}
+${refExample}
 === AKHIR CONTOH REFERENSI ===
 
 ATURAN WAJIB:
-${FACIL_NARRATIVE_INSTRUCTIONS}
+${instructions}
 
 === DATA FASILITATOR (SATU-SATUNYA sumber angka yang boleh dipakai) ===
 \`\`\`json
@@ -516,28 +518,49 @@ function findLastFilledDay(row: FacilRow): number {
   return TOTAL_HARI_SIKLUS;
 }
 
-const FACIL_NARRATIVE_REFERENCE_EXAMPLE = `Fasil ini hanya mengisi LK Fasil sampai hari ke-4.
-Terdapat 1 sekolah yang mengundurkan diri.
+function buildDynamicReferenceExample(data: Record<string, any>): string {
+  const parts: string[] = [
+    `Fasil ini hanya mengisi LK Fasil sampai hari ke-4.\nTerdapat 1 sekolah yang mengundurkan diri.\n\nNilai capaian fasil atas Muhammad Haditya Yervan berada di angka 26.41 karena banyak checkpoint yang capaiannya masih rendah. Tidak ada perubahan/perkembangan dari hari kemarin, tetap di angka 26.41.\n\nCheckpoint wajib untuk hari ke-12 yaitu seluruh sekolah telah sepakat RAB. Namun, hingga hari ke-20 ini, masih terdapat 19 sekolah yang belum sepakat RAB (100%). Beberapa hal yang berpengaruh terhadap capaian tersebut adalah belum tercapainya checkpoint perencana dan rendahnya angka unggah dan verifikasi dokumen teknis. Ada perubahan dari hari kemarin, dari angka 89.47% turun menjadi 0%.`
+  ];
 
-Nilai capaian fasil atas Muhammad Haditya Yervan berada di angka 26.41 karena banyak checkpoint yang capaiannya masih rendah. Tidak ada perubahan/perkembangan dari hari kemarin, tetap di angka 26.41.
+  if (data.sekolahLoginAplikasi) {
+    parts.push(`Sekolah login aplikasi: Masih terdapat 2 sekolah yang belum login aplikasi (10.0% sekolah belum login). Kendala terkait login aplikasi tidak teridentifikasi di LK Fasil.`);
+  }
+  if (data.perencana) {
+    parts.push(`Perencana: Masih ada 14 sekolah yang belum memiliki perencana sehingga sekolah belum dapat menyelesaikan penyusunan dokumen admin dan memulai menyusun dokumen teknis. Kendala terkait perencana tidak teridentifikasi karena fasil tidak mengisi informasi terkait perencana di LK Fasil.`);
+  }
+  if (data.dokumenTeknis?.unggahPersen !== undefined) {
+    parts.push(`Unggah dokumen teknis: Baru sekitar 16 dari 120 dokumen teknis yang terunggah (14.04% rata-rata dokumen teknis terunggah). Artinya masih sekitar 104 dokumen yang harus ditagih untuk segera diunggah. Angka minimal persen terunggah menunjukan masih adanya sekolah yang belum mengunggah satupun dokumen (0% minimal dokumen teknis terunggah). Kendala terkait unggah dokumen teknis tidak teridentifikasi karena fasil tidak mengisi informasi terkait hal di LK Fasil.`);
+  }
+  if (data.dokumenTeknis?.verifikasiPersen !== undefined) {
+    parts.push(`Verifikasi dokumen teknis: Dari sekitar 16 dokumen teknis yang terunggah, belum ada dokumen teknis yang terverifikasi oleh fasil (0% rata-rata dok. teknis terverifikasi). Kendala terkait verifikasi dokumen teknis tidak teridentifikasi karena fasil tidak mengisi informasi terkait hal ini di LK Fasil.`);
+  }
+  if (data.dokumenTeknis?.sesuaiPersen !== undefined) {
+    parts.push(`Verifikasi dokumen teknis "Sesuai": Dari sekitar 116 dokumen teknis yang terverifikasi, baru sekitar 112 dokumen teknis yang terverifikasi dengan status "Sesuai" (96.55% rata dokumen teknis terverifikasi "Sesuai").`);
+  }
+  if (data.dokumenAdmin?.unggahPersen !== undefined) {
+    parts.push(`Unggah dokumen admin: Baru sekitar 150 dari 220 dokumen admin yang terunggah (68.42% rata-rata dokumen admin terunggah). Artinya masih sekitar 70 dokumen yang harus ditagih untuk segera diunggah. Angka minimal persen terunggah menunjukan adanya sekolah yang belum mengunggah sama sekali dari 11 dokumen (0% minimal dokumen admin terunggah). Kendala terkait unggah dokumen admin adalah dokumen belum tersedia lengkap di sekolah (Sumber: LK Fasil).`);
+  }
+  if (data.dokumenAdmin?.verifikasiPersen !== undefined) {
+    parts.push(`Verifikasi dokumen admin: Dari sekitar 150 dokumen admin yang terunggah, yang sudah terverifikasi oleh fasil sekitar 76 dokumen (51.20% rata-rata dokumen admin terverifikasi). Artinya masih sekitar 74 dokumen admin yang harus segera diverifikasi. Ada perubahan dari hari kemarin, dari angka 65.20% turun menjadi 51.20%.`);
+  }
+  if (data.dokumenAdmin?.sesuaiPersen !== undefined) {
+    parts.push(`Verifikasi dokumen admin "Sesuai": Dari sekitar 76 dokumen admin yang terverifikasi oleh fasil, baru sekitar 35 dokumen admin yang terverifikasi dengan status "Sesuai" (46.89% rata dokumen admin terverifikasi "Sesuai").`);
+  }
 
-Checkpoint wajib untuk hari ke-12 yaitu seluruh sekolah telah sepakat RAB. Namun, hingga hari ke-20 ini, masih terdapat 19 sekolah yang belum sepakat RAB (100%). Beberapa hal yang berpengaruh terhadap capaian tersebut adalah belum tercapainya checkpoint perencana dan rendahnya angka unggah dan verifikasi dokumen teknis. Ada perubahan dari hari kemarin, dari angka 89.47% turun menjadi 0%.
+  if (data.catatanLain && Object.keys(data.catatanLain).length > 0) {
+    const cl = data.catatanLain;
+    const clParts: string[] = ["Catatan lain:"];
+    if (cl.biodata) clParts.push(`Biodata: Masih 8 sekolah yang belum terverifikasi "Sesuai" biodatanya (63.16% sekolah biodata sudah terverifikasi sesuai).`);
+    if (cl.dapodik) clParts.push(`Dapodik: Seluruh sekolah yang data dapodiknya belum sesuai rincian menu yang dibutuhkan tidak bisa mengupdate Dapodik dikarenakan Dapodik terkunci (Sumber: LK Fasil). Ada perubahan dari hari kemarin, dari angka 20.0% turun menjadi 15.0%.`);
+    if (cl.komunikasi) clParts.push(`Komunikasi: Masih ada 5 sekolah yang belum bisa dihubungi secara intensif oleh fasilitator (75% komunikasi tercapai). Kendala komunikasi adalah operator sulit dihubungi.`);
+    if (cl.panlakFormat) clParts.push(`Panlak / Format: Masih 3 sekolah yang belum memiliki dokumen panlak dan format template kelengkapan (85% sekolah sudah lengkap).`);
+    if (cl.rab) clParts.push(`RAB: Terdapat 4 sekolah yang mengalami kesukaran menyepakati RAB dikarenakan harga item tidak sesuai (80% sepakat).`);
+    parts.push(clParts.join("\n"));
+  }
 
-Perencana: Masih ada 14 sekolah yang belum memiliki perencana sehingga sekolah belum dapat menyelesaikan penyusunan dokumen admin dan memulai menyusun dokumen teknis. Kendala terkait perencana tidak teridentifikasi karena fasil tidak mengisi informasi terkait perencana di LK Fasil.
-
-Unggah dokumen teknis: Baru sekitar 16 dari 120 dokumen teknis yang terunggah (14.04% rata-rata dokumen teknis terunggah). Artinya masih sekitar 104 dokumen yang harus ditagih untuk segera diunggah. Angka minimal persen terunggah menunjukan masih adanya sekolah yang belum mengunggah satupun dokumen (0% minimal dokumen teknis terunggah). Kendala terkait unggah dokumen teknis tidak teridentifikasi karena fasil tidak mengisi informasi terkait hal di LK Fasil.
-
-Verifikasi dokumen teknis: Dari sekitar 16 dokumen teknis yang terunggah, belum ada dokumen teknis yang terverifikasi oleh fasil (0% rata-rata dok. teknis terverifikasi). Kendala terkait verifikasi dokumen teknis tidak teridentifikasi karena fasil tidak mengisi informasi terkait hal ini di LK Fasil.
-
-Unggah dokumen admin: Baru sekitar 150 dari 220 dokumen admin yang terunggah (68.42% rata-rata dokumen admin terunggah). Artinya masih sekitar 70 dokumen yang harus ditagih untuk segera diunggah. Angka minimal persen terunggah menunjukan adanya sekolah yang belum mengunggah sama sekali dari 11 dokumen (0% minimal dokumen admin terunggah). Kendala terkait unggah dokumen admin adalah dokumen belum tersedia lengkap di sekolah (Sumber: LK Fasil).
-
-Verifikasi dokumen admin: Dari sekitar 150 dokumen admin yang terunggah, yang sudah terverifikasi oleh fasil sekitar 76 dokumen (51.20% rata-rata dokumen admin terverifikasi). Artinya masih sekitar 74 dokumen admin yang harus segera diverifikasi. Ada perubahan dari hari kemarin, dari angka 65.20% turun menjadi 51.20%.
-
-Verifikasi dokumen admin "Sesuai": Dari sekitar 76 dokumen admin yang terverifikasi oleh fasil, baru sekitar 35 dokumen admin yang terverifikasi dengan status "Sesuai" (46.89% rata dokumen admin terverifikasi "Sesuai").
-
-Catatan lain:
-Biodata: Masih 8 sekolah yang belum terverifikasi "Sesuai" biodatanya (63.16% sekolah biodata sudah terverifikasi sesuai).
-Dapodik: Seluruh sekolah yang data dapodiknya belum sesuai rincian menu yang dibutuhkan tidak bisa mengupdate Dapodik dikarenakan Dapodik terkunci (Sumber: LK Fasil). Ada perubahan dari hari kemarin, dari angka 20.0% turun menjadi 15.0%.`;
+  return parts.join("\n\n");
+}
 
 /**
  * Data & instruksi naratif BERSAMA untuk SATU fasilitator - dipakai baik oleh
@@ -764,51 +787,89 @@ function buildFacilNarrativeData(row: FacilRow, hari: number, prevRow?: FacilRow
   const result = withDayOverDayDeltas(base, prev);
 
   // Filter dinamis: Hapus kategori & item catatanLain yang sudah mencapai target 100% (0% masalah)
-  // dan tidak memiliki kendala dari JSON agar LLM sama sekali tidak membahasnya di analisis.
+  // agar LLM sama sekali tidak membahasnya di analisis (meskipun ada sisa teks catatan/kendala yang kurang relevan).
   const cleaned: Record<string, any> = { ...result };
 
   if (result.sekolahLoginAplikasi && result.sekolahLoginAplikasi.belumLoginPersen === 0) {
     delete cleaned.sekolahLoginAplikasi;
   }
-  if (result.perencana && result.perencana.belumPunyaPersen === 0 && !result.perencana.kendala) {
+  if (result.perencana && result.perencana.belumPunyaPersen === 0) {
     delete cleaned.perencana;
   }
-  if (
-    result.dokumenTeknis &&
-    result.dokumenTeknis.unggahPersen === 100 &&
-    result.dokumenTeknis.verifikasiPersen === 100 &&
-    result.dokumenTeknis.sesuaiPersen === 100 &&
-    !result.dokumenTeknis.kendalaUnggah &&
-    !result.dokumenTeknis.kendalaVerifikasi
-  ) {
-    delete cleaned.dokumenTeknis;
+  if (result.dokumenTeknis) {
+    const dt: Record<string, any> = { ...result.dokumenTeknis };
+    if (dt.unggahPersen === 100) {
+      delete dt.unggahPersen;
+      delete dt.unggahJumlah;
+      delete dt.unggahMinimalPersen;
+      delete dt.kendalaUnggah;
+      delete dt.unggahBandingHariSebelumnya;
+    }
+    if (dt.verifikasiPersen === 100) {
+      delete dt.verifikasiPersen;
+      delete dt.verifikasiJumlah;
+      delete dt.kendalaVerifikasi;
+      delete dt.verifikasiBandingHariSebelumnya;
+    }
+    if (dt.sesuaiPersen === 100) {
+      delete dt.sesuaiPersen;
+      delete dt.sesuaiJumlah;
+      delete dt.sesuaiBandingHariSebelumnya;
+    }
+    if (
+      Object.keys(dt).length <= 1 ||
+      (dt.unggahPersen === undefined && dt.verifikasiPersen === undefined && dt.sesuaiPersen === undefined)
+    ) {
+      delete cleaned.dokumenTeknis;
+    } else {
+      cleaned.dokumenTeknis = dt;
+    }
   }
-  if (
-    result.dokumenAdmin &&
-    result.dokumenAdmin.unggahPersen === 100 &&
-    result.dokumenAdmin.verifikasiPersen === 100 &&
-    result.dokumenAdmin.sesuaiPersen === 100 &&
-    !result.dokumenAdmin.kendalaUnggah &&
-    !result.dokumenAdmin.kendalaVerifikasi
-  ) {
-    delete cleaned.dokumenAdmin;
+  if (result.dokumenAdmin) {
+    const da: Record<string, any> = { ...result.dokumenAdmin };
+    if (da.unggahPersen === 100) {
+      delete da.unggahPersen;
+      delete da.unggahJumlah;
+      delete da.unggahMinimalPersen;
+      delete da.kendalaUnggah;
+      delete da.unggahBandingHariSebelumnya;
+    }
+    if (da.verifikasiPersen === 100) {
+      delete da.verifikasiPersen;
+      delete da.verifikasiJumlah;
+      delete da.kendalaVerifikasi;
+      delete da.verifikasiBandingHariSebelumnya;
+    }
+    if (da.sesuaiPersen === 100) {
+      delete da.sesuaiPersen;
+      delete da.sesuaiJumlah;
+      delete da.sesuaiBandingHariSebelumnya;
+    }
+    if (
+      Object.keys(da).length <= 1 ||
+      (da.unggahPersen === undefined && da.verifikasiPersen === undefined && da.sesuaiPersen === undefined)
+    ) {
+      delete cleaned.dokumenAdmin;
+    } else {
+      cleaned.dokumenAdmin = da;
+    }
   }
 
   if (result.catatanLain) {
     const cl: Record<string, any> = { ...result.catatanLain };
-    if (cl.biodata && cl.biodata.belumTerverifikasiPersen === 0 && !cl.biodata.kendala) {
+    if (cl.biodata && cl.biodata.belumTerverifikasiPersen === 0) {
       delete cl.biodata;
     }
-    if (cl.dapodik && cl.dapodik.sudahUploadBuktiPersen === 100 && !cl.dapodik.kendala) {
+    if (cl.dapodik && cl.dapodik.sudahUploadBuktiPersen === 100) {
       delete cl.dapodik;
     }
-    if (cl.komunikasi && cl.komunikasi.belumDihubungiPersen === 0 && !cl.komunikasi.kendala) {
+    if (cl.komunikasi && cl.komunikasi.belumDihubungiPersen === 0) {
       delete cl.komunikasi;
     }
-    if (cl.panlakFormat && cl.panlakFormat.belumPanlakPersen === 0 && cl.panlakFormat.belumFormatPersen === 0 && !cl.panlakFormat.kendala) {
+    if (cl.panlakFormat && cl.panlakFormat.belumPanlakPersen === 0 && cl.panlakFormat.belumFormatPersen === 0) {
       delete cl.panlakFormat;
     }
-    if (cl.rab && cl.rab.belumSepakatPersen === 0 && !cl.rab.kendala) {
+    if (cl.rab && cl.rab.belumSepakatPersen === 0) {
       delete cl.rab;
     }
 
@@ -825,16 +886,43 @@ function buildFacilNarrativeData(row: FacilRow, hari: number, prevRow?: FacilRow
 /** ATURAN WAJIB naratif fasilitator - dipakai APA ADANYA baik oleh
  * buildFacilitatorAnalysisMessages() maupun buildFacilitatorCopyPromptText()
  * (lihat catatan di buildFacilNarrativeData di atas soal kenapa disatukan). */
-const FACIL_NARRATIVE_INSTRUCTIONS = `1. Ikuti urutan paragraf PERSIS seperti contoh: (a) baris pembuka - lihat field "barisPembukaMacet" dan "barisMengundurkanDiri" di data: KALAU "barisPembukaMacet" berisi teks, salin teks itu APA ADANYA sebagai baris pembuka (JANGAN diubah satu kata pun); KALAU null, LEWATI baris pembuka ini SEPENUHNYA. KALAU "barisMengundurkanDiri" berisi teks, salin teks itu APA ADANYA tepat di bawah baris pembuka macet (atau paling atas jika barisPembukaMacet null); KALAU null, lewati sepenuhnya. PERINGATAN KERAS: barisPembukaMacet null artinya fasil SUDAH mengisi PENUH sampai batas akhir siklus - ini BUKAN kendala/keterlambatan. JANGAN PERNAH mengarang sendiri kalimat sejenis "Fasil ini hanya/baru mengisi LK Fasil sampai hari ke-X" dari data lain manapun di JSON ini kalau barisPembukaMacet null - itu HALUSINASI, (b) baris "Nilai capaian fasil atas [Nama] berada di angka [Skor Akhir] karena ..." - HANYA sebutkan angkanya lalu langsung jelaskan alasannya (grounded ke checkpoint/data yang bermasalah). JANGAN tempelkan kata sifat/label kualitatif APAPUN ke skor itu sendiri buat menilai/mengkategorikannya (dilarang keras variasi: "(masuk kriteria ...)", "tergolong rendah/cukup/baik", dsb). Tutup baris ini dengan SATU kalimat tambahan berisi field top-level "skorAkhirBandingHariSebelumnya" APA ADANYA (untuk Skor Akhir, perbandingan hari kemarin SELALU disebutkan baik naik, turun, maupun tetap), (c) paragraf "Checkpoint wajib untuk hari ke-X yaitu ...", X WAJIB diambil PERSIS dari field "checkpointWajibHariIni.aktifSejakHari" di data (hari checkpoint ini MULAI berlaku/jatuh tempo). Setelah "yaitu", jelaskan checkpoint yang sedang berlaku dan status pencapaiannya, tutup dengan menyebutkan SPESIFIK checkpoint/kategori mana yang jadi penyebab utama. JANGAN menjelaskan definisi/tujuan monitoring checkpoint tsb. SEGERA setelah kalimat "yaitu ..." itu, WAJIB tambahkan SATU kalimat lagi berpola "Namun, hingga hari ke-{hariIni} ini, masih terdapat {checkpointWajibHariIni.belumMencapaiJumlah} sekolah yang belum [target] ({checkpointWajibHariIni.belumMencapaiPersen}%)." (kalau 0, lewati/ganti kalimat positif). Akhiri paragraf checkpoint ini dengan field "checkpointWajibHariIni.bandingHariSebelumnya" APA ADANYA (lihat poin 9: HANYA jika tidak null).
-2. SETELAH itu, bahas kategori-kategori berikut yang RELEVAN (lihat poin 3), satu paragraf per kategori, SATU PER SATU dengan urutan dan label PERSIS ini kalau memang dibahas (pakai tanda kutip dua untuk kata "Sesuai"): "Sekolah login aplikasi:", "Perencana:", "Unggah dokumen teknis:", "Verifikasi dokumen teknis:", "Verifikasi dokumen teknis "Sesuai":", "Unggah dokumen admin:", "Verifikasi dokumen admin:", "Verifikasi dokumen admin "Sesuai":".
-3. Tiap kategori di poin 2 HANYA dibahas KALAU kategori tersebut MUNCUL di dalam data JSON (sistem telah membatasi JSON agar hanya berisi kategori dengan capaian DI BAWAH 100%/bermasalah). KALAU sebuah kategori TIDAK ADA/HILANG dari data JSON, artinya capaiannya SUDAH 100%/sempurna. LEWATI kategori itu SEPENUHNYA - jangan disebut sama sekali, dan jangan juga menuliskan kalimat pengganti seperti "seluruhnya sudah ...". Cukup abaikan dan langsung ke poin berikutnya.
+function buildDynamicInstructions(data: Record<string, any>): string {
+  const activeCategories: string[] = [];
+  if (data.sekolahLoginAplikasi) activeCategories.push(`- "Sekolah login aplikasi:" -> bersumber HANYA dari key JSON [sekolahLoginAplikasi]`);
+  if (data.perencana) activeCategories.push(`- "Perencana:" -> bersumber HANYA dari key JSON [perencana]`);
+  if (data.dokumenTeknis?.unggahPersen !== undefined) activeCategories.push(`- "Unggah dokumen teknis:" -> bersumber HANYA dari key JSON [dokumenTeknis.unggahPersen]`);
+  if (data.dokumenTeknis?.verifikasiPersen !== undefined) activeCategories.push(`- "Verifikasi dokumen teknis:" -> bersumber HANYA dari key JSON [dokumenTeknis.verifikasiPersen]`);
+  if (data.dokumenTeknis?.sesuaiPersen !== undefined) activeCategories.push(`- "Verifikasi dokumen teknis \\"Sesuai\\":" -> bersumber HANYA dari key JSON [dokumenTeknis.sesuaiPersen]`);
+  if (data.dokumenAdmin?.unggahPersen !== undefined) activeCategories.push(`- "Unggah dokumen admin:" -> bersumber HANYA dari key JSON [dokumenAdmin.unggahPersen]`);
+  if (data.dokumenAdmin?.verifikasiPersen !== undefined) activeCategories.push(`- "Verifikasi dokumen admin:" -> bersumber HANYA dari key JSON [dokumenAdmin.verifikasiPersen]`);
+  if (data.dokumenAdmin?.sesuaiPersen !== undefined) activeCategories.push(`- "Verifikasi dokumen admin \\"Sesuai\\":" -> bersumber HANYA dari key JSON [dokumenAdmin.sesuaiPersen]`);
+
+  const point2Text = activeCategories.length > 0
+    ? `2. SETELAH itu, bahas HANYA kategori/tahap berikut yang aktif di JSON (karena nilainya masih di bawah 100%), satu paragraf per tahap, SATU PER SATU dengan urutan dan label PERSIS ini:\n${activeCategories.join("\n")}`
+    : `2. Seluruh kategori dokumen (teknis & admin), perencana, dan login sudah mencapai target 100% dan telah dihapus sistem dari JSON. OLEH KARENA ITU, TIDAK ADA PARAGRAF KATEGORI DOKUMEN YANG BOLEH DULAS/DITULIS (langsung lompat ke bagian Catatan lain bila ada).`;
+
+  const activeNotes: string[] = [];
+  if (data.catatanLain?.biodata) activeNotes.push(`"Biodata:" (dari [catatanLain.biodata])`);
+  if (data.catatanLain?.dapodik) activeNotes.push(`"Dapodik:" (dari [catatanLain.dapodik])`);
+  if (data.catatanLain?.komunikasi) activeNotes.push(`"Komunikasi:" (dari [catatanLain.komunikasi])`);
+  if (data.catatanLain?.panlakFormat) activeNotes.push(`"Panlak / Format:" (dari [catatanLain.panlakFormat])`);
+  if (data.catatanLain?.rab) activeNotes.push(`"RAB:" (dari [catatanLain.rab])`);
+
+  const point6Text = activeNotes.length > 0
+    ? `6. WAJIB tutup dengan bagian "Catatan lain:" (judul PERSIS begitu) - DAN HANYA TULISKAN baris-baris singkat untuk item yang aktif berikut: ${activeNotes.join(", ")}. Selalu cantumkan kendalanya (jika ada) DAN angka persentase/statistik capaian terbarunya dari JSON (meskipun tidak ada penurunan dari hari kemarin). Item lain di luar daftar tersebut SUDAH MENCAPAI 100% DAN DILARANG KERAS DITULIS!`
+    : `6. Bagian "Catatan lain:" TIDAK PERLU DITULIS (lewati seluruh bagian Catatan lain ini, termasuk judulnya) karena seluruh indikator catatan lain sudah mencapai 100% di JSON.`;
+
+  return `1. Ikuti urutan paragraf PERSIS seperti contoh: (a) baris pembuka - lihat field "barisPembukaMacet" dan "barisMengundurkanDiri" di data: KALAU "barisPembukaMacet" berisi teks, salin teks itu APA ADANYA sebagai baris pembuka (JANGAN diubah satu kata pun); KALAU null, LEWATI baris pembuka ini SEPENUHNYA. KALAU "barisMengundurkanDiri" berisi teks, salin teks itu APA ADANYA tepat di bawah baris pembuka macet (atau paling atas jika barisPembukaMacet null); KALAU null, lewati sepenuhnya. PERINGATAN KERAS: barisPembukaMacet null artinya fasil SUDAH mengisi PENUH sampai batas akhir siklus - ini BUKAN kendala/keterlambatan. JANGAN PERNAH mengarang sendiri kalimat sejenis "Fasil ini hanya/baru mengisi LK Fasil sampai hari ke-X" dari data lain manapun di JSON ini kalau barisPembukaMacet null - itu HALUSINASI, (b) baris "Nilai capaian fasil atas [Nama] berada di angka [Skor Akhir] karena ..." - HANYA sebutkan angkanya lalu langsung jelaskan alasannya (grounded ke checkpoint/data yang bermasalah). JANGAN tempelkan kata sifat/label kualitatif APAPUN ke skor itu sendiri buat menilai/mengkategorikannya (dilarang keras variasi: "(masuk kriteria ...)", "tergolong rendah/cukup/baik", dsb). Tutup baris ini dengan SATU kalimat tambahan berisi field top-level "skorAkhirBandingHariSebelumnya" APA ADANYA (untuk Skor Akhir, perbandingan hari kemarin SELALU disebutkan baik naik, turun, maupun tetap), (c) paragraf "Checkpoint wajib untuk hari ke-X yaitu ...", X WAJIB diambil PERSIS dari field "checkpointWajibHariIni.aktifSejakHari" di data (hari checkpoint ini MULAI berlaku/jatuh tempo). Setelah "yaitu", jelaskan checkpoint yang sedang berlaku dan status pencapaiannya, tutup dengan menyebutkan SPESIFIK checkpoint/kategori mana yang jadi penyebab utama. JANGAN menjelaskan definisi/tujuan monitoring checkpoint tsb. SEGERA setelah kalimat "yaitu ..." itu, WAJIB tambahkan SATU kalimat lagi berpola "Namun, hingga hari ke-{hariIni} ini, masih terdapat {checkpointWajibHariIni.belumMencapaiJumlah} sekolah yang belum [target] ({checkpointWajibHariIni.belumMencapaiPersen}%)." (kalau 0, lewati/ganti kalimat positif). Akhiri paragraf checkpoint ini dengan field "checkpointWajibHariIni.bandingHariSebelumnya" APA ADANYA (lihat poin 9: HANYA jika tidak null).
+${point2Text}
+3. ATURAN KETAT DAN MUTLAK DALAM MELEWATI DATA: Sistem kami TELAH MENGHAPUS seluruh kategori atau tahap dokumen yang sudah mencapai 100% dari data JSON maupun dari daftar di Poin 2 dan contoh referensi di atas. Kategori yang sudah dihilangkan sistem DILARANG KERAS DITULIS ATAU DISEBUT SAMA SEKALI! JANGAN PERNAH menambahkan paragraf dengan kalimat kompensasi/alasan sejenis "Data terkait ... tidak tersedia dalam laporan ini...", "Belum ada data...", "Tidak dapat diuraikan lebih lanjut", ataupun "... tidak teridentifikasi". CUKUP TULIS PARAGRAF UNTUK KATEGORI YANG TERDAFTAR DI POIN 2 SAJA! Yang tidak terdaftar tidak pernah boleh di-mention satu huruf pun!
 4. Kalau ada kolom "kendala..." yang isinya bukan string kosong di data, sertakan isinya apa adanya sebagai kalimat kendala di paragraf terkait. Kalau kosong, tulis kalimat seperti pada contoh ("Kendala terkait ... tidak teridentifikasi karena fasil tidak mengisi informasi terkait hal ini di LK Fasil").
 5. Kalau ada ketimpangan besar antara satu tahap dan tahap berikutnya dalam kategori yang sama (mis. banyak yang terunggah tapi sedikit yang terverifikasi), sertakan juga angka selisihnya secara eksplisit di kalimatnya.
 5b. Untuk kalimat yang menyebut persentase "sudah" sebagai pasangan dari angka "belum", WAJIB pakai field "sudahLoginPersen"/"sudahPunyaPersen"/"sudahTerverifikasiPersen" APA ADANYA dari data JSON - JANGAN menghitung sendiri (100 - persen belum).
-6. WAJIB tutup dengan bagian "Catatan lain:" (judul PERSIS begitu, tanpa paragraf lain di atasnya dulu) - HANYA KALA key "catatanLain" ada di dalam data JSON dan BERISI minimal satu item. Jika key "catatanLain" TIDAK ADA di JSON, LEWATI SELURUH bagian "Catatan lain" ini termasuk judulnya. Jika key "catatanLain" ada, tulis baris-baris singkat HANYA UNTUK ITEM YANG ADA di dalam object catatanLain pada JSON tersebut (mis. jika di JSON cuma ada "komunikasi", maka BAHAS KOMUNIKASI SAJA). Item yang hilang/tidak ada dari JSON (seperti biodata, dapodik, komunikasi, panlakFormat, rab yang sudah dicoret sistem karena mencapai 100%) DILARANG KERAS dibahas atau dipaksa ditulis! (Mengundurkan diri SUDAH dipindahkan ke atas di poin 1a, jangan ditulis di sini).
+${point6Text}
 7. Data dari field "kendala..." yang kosong ("") berarti memang belum ada catatan dari fasilitator - JANGAN mengarang kendala yang tidak ada di data.
 8. Tulis paragraf mengalir natural (bukan bullet point/list), Bahasa Indonesia, TANPA judul tebal markdown di depan tiap paragraf.
 9. ATURAN PERUBAHAN DARI HARI KEMARIN (SANGAT PENTING): Untuk setiap indikator/kategori (baik itu paragraf checkpoint poin 1c, kategori di poin 2, atau baris di "Catatan lain" poin 6), perhatikan field "...BandingHariSebelumnya" terkait di data JSON. Field tersebut HANYA akan bernilai teks jika capaian mengalami PENURUNAN (turun) dibanding hari kemarin. KALAU field tersebut berisi string, salin kalimat perbandingan itu APA ADANYA di akhir paragraf/baris terkait. KALAU field tersebut bernilai null (karena persentase capaiannya sama seperti kemarin atau angkanya naik), TIDAK USAH DIMENTION perubahannya! JANGAN masukkan kalimat pembanding apapun tentang hari kemarin di akhir paragraf tersebut (DILARANG KERAS merangkai frasa seperti "Tidak ada perubahan/perkembangan...", "tetap di angka...", atau "Ada perubahan... naik menjadi..."). Cukup akhiri paragraf seolah tidak ada pembandingan. (Ingat: pengecualian HANYA untuk Nilai Capaian / Skor Akhir di poin 1b, di mana skorAkhirBandingHariSebelumnya SELALU ditampilkan baik naik, turun, maupun tetap).`;
+}
 
 /**
  * Prompt untuk tombol "Copy Prompt" (FacilitatorAnalysisWorkbench.tsx) - untuk
@@ -847,15 +935,17 @@ const FACIL_NARRATIVE_INSTRUCTIONS = `1. Ikuti urutan paragraf PERSIS seperti co
  */
 export function buildFacilitatorCopyPromptText(row: FacilRow, hari: number, prevRow?: FacilRow | null): string {
   const data = buildFacilNarrativeData(row, hari, prevRow);
+  const refExample = buildDynamicReferenceExample(data);
+  const instructions = buildDynamicInstructions(data);
 
   return `Anda adalah asisten analis untuk program revitalisasi sekolah. Tolong tulis analisis naratif untuk SATU fasilitator lapangan, PERSIS meniru gaya, struktur, dan urutan paragraf dari "CONTOH REFERENSI" di bawah - tapi SELURUH angka harus berasal dari "DATA FASILITATOR" (JSON) di bawahnya, JANGAN sekali-kali memakai angka dari contoh referensi.
 
 === CONTOH REFERENSI (tiru gaya & strukturnya, BUKAN angkanya) ===
-${FACIL_NARRATIVE_REFERENCE_EXAMPLE}
+${refExample}
 === AKHIR CONTOH REFERENSI ===
 
 ATURAN WAJIB:
-${FACIL_NARRATIVE_INSTRUCTIONS}
+${instructions}
 
 === DATA FASILITATOR (SATU-SATUNYA sumber angka yang boleh dipakai) ===
 \`\`\`json
